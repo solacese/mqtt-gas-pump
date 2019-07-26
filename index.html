@@ -1,0 +1,26 @@
+<html>
+<head>
+    <title>Gas Pump Demo</title>
+    <link rel="stylesheet" type="text/css" href="css/solace-style.css">
+    
+</head>
+
+<script>
+    function generateQrCode(){
+        var sessionId = (Math.random()*0xFFFFFF<<0).toString(16);
+        document.getElementById("qr-code").innerHTML = "<img src=https://api.qrserver.com/v1/create-qr-code/?data=" + sessionId +"&amp;size=200x200&amp;color=00CB95&amp;bgcolor=333333>"
+    }
+</script>
+
+<body onload="generateQrCode()" >
+    <h1 align="center">Solace MQTT Gas Pump Demo</h1>
+    <div id="qr-code" align="center">
+    </div>
+    <br>
+    <br>
+    <div align="center">
+        Scan QR Code with your mobile phone to turn it into a gas station!
+    </div>
+</body>
+
+</html>
