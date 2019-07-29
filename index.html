@@ -2,17 +2,52 @@
 <head>
     <title>Gas Pump Demo</title>
     <link rel="stylesheet" type="text/css" href="css/solace-style.css">
-    
+    <script src="https://cdn.jsdelivr.net/npm/solclientjs@10.1.0/lib-browser/solclient.js"></script>
+    <script src="js/pubsubplus-config.js"></script>
+    <script src="js/solace-client.js"></script>
 </head>
 
 <script>
-    function generateQrCode(){
-        var sessionId = (Math.random()*0xFFFFFF<<0).toString(16);
-        document.getElementById("qr-code").innerHTML = "<img src=https://api.qrserver.com/v1/create-qr-code/?data=" + sessionId +"&amp;size=200x200&amp;color=00CB95&amp;bgcolor=333333>"
+
+    var stations=[];
+    var solaceclient;
+
+    var sessionId;
+
+    function loginPump(message){
+        var loginMessage = JSON.parse(message.getBinaryAttachment());
+        stations.push(loginMessage.name);
+        document.getElementById("btnDashboard").innerHTML=stations.length+ " stations connected";
+        if(stations.length==1){
+            document.getElementById("btnDashboard").disabled=false;
+        }
+
     }
+
+    function displayDashboard(){
+        console.log("Display Dashboard with "+stations);
+        solaceclient.publish(pubsubplus_config.start_topic_prefix+"/"+sessionId,"{'start':'true'}")
+    }
+
+    function generateQrCodeAndConnectToSolace(){
+        sessionId = (Math.random()*0xFFFFFF<<0).toString(16);
+        document.getElementById("qr-code").innerHTML = "<img src=https://api.qrserver.com/v1/create-qr-code/?data=http://www.google.com/?" + sessionId +"&amp;size=200x200&amp;color=00CB95&amp;bgcolor=333333>"
+           // Initialize factory with the most recent API defaults
+           var factoryProps = new solace.SolclientFactoryProperties();
+        factoryProps.profile = solace.SolclientFactoryProfiles.version10;
+        solace.SolclientFactory.init(factoryProps);
+        // enable logging to JavaScript console at WARN level
+        // NOTICE: works only with "solclientjs-debug.js"
+        solace.SolclientFactory.setLogLevel(solace.LogLevel.WARN);
+        solaceclient = new SolaceClient(pubsubplus_config.login_topic_prefix+"/"+sessionId,loginPump);
+        solaceclient.connectToSolace();
+        
+    }
+
+
 </script>
 
-<body onload="generateQrCode()" >
+<body onload="generateQrCodeAndConnectToSolace()" >
     <h1 align="center">Solace MQTT Gas Pump Demo</h1>
     <div id="qr-code" align="center">
     </div>
@@ -20,6 +55,8 @@
     <br>
     <div align="center">
         Scan QR Code with your mobile phone to turn it into a gas station!
+        <br><br>
+        <button class="button" disabled id="btnDashboard" onclick="displayDashboard()">0 Stations Connected</button>
     </div>
 </body>
 
