@@ -1,4 +1,4 @@
-pubsubplus_config=
+export const pubsubplus_config=
 {
     "username":"",
     "password":"",
