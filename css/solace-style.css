@@ -3,8 +3,6 @@ body {
     color: #00CB95;
     background: #343C46;
 }
-
-<<<<<<< HEAD
 /* For the vertical progress bars indicating gas consumption */
 .progress-bar-vertical {
     font-weight: bold;
@@ -23,7 +21,7 @@ body {
     -o-transition: height 0.6s ease;
     transition: height 0.6s ease;
   }
-=======
+
 .button {
     background-color: #4CAF50;
     border: none;
@@ -35,5 +33,3 @@ body {
     font-size: 16px;
     margin: 4px 2px;
   }
-  
->>>>>>> dcc9940cb10c236548bb0defd388501392155a65
