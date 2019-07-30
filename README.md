@@ -20,6 +20,7 @@ This repository contains:
 
 1. **[mobile-web-app](mobile-web-app/):** A ReactJS application that simulates a gas-pump on your mobile phone
 2. **[pubsubplus-config.js](pubsubplus-config.js):** Connection information for the pubsub-plus broker
+3. **[pubsubplusbroker.js](common/pubsubplusbroker.js)** Code for connecting to a PubSub+ broker
 
 
 ## Checking out
