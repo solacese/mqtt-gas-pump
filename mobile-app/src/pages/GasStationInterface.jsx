@@ -15,6 +15,7 @@ import { SvgGasStationDiagram } from "../../public/icons";
 
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
+import { start } from "repl";
 
 /**
  * Styling
@@ -126,9 +127,9 @@ function FuelTank({ fuelLevel, radius }) {
 
 function GasStationInterface(props) {
   // get params from redirect
-  const sessionId = props.location.state.sessionId;
-  const stationName = props.location.state.name;
-  const userId = props.location.state.userId;
+  const sessionId = 123;//props.location.state.sessionId;
+  const stationName = "Toronto";//props.location.state.name;
+  const userId = 123;//props.location.state.userId;
 
   /* component logic */
   // enable logging
@@ -156,7 +157,15 @@ function GasStationInterface(props) {
         if(flowState == "SLOW"){
           if(cycleCounter) {
             setFuelLevel(prevFuelLevel => {
-              client.send(`gasStation/${sessionId}/${userId}/flow`, String(prevFuelLevel - flowRatePerSec));
+              client.send(
+                `suncor/${userId}/${stationName}/msg`, 
+                JSON.stringify({
+                  UUID: userId,
+                  type: start,
+                  location: stationName,
+                  value: 100
+                }));
+              //client.send(`gasStation/${sessionId}/${userId}/flow`, String(prevFuelLevel - flowRatePerSec));
               log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
               return (prevFuelLevel - flowRatePerSec);
             });
