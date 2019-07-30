@@ -1,24 +1,33 @@
 /**
  * 
 */
-var broker, progressPumpMap, progressPumpMapIterator;
+var broker, fillMeterMap;
 
 $(document).ready(function () {
 
-    //progressPumpMap = new Map([["fillgauge1", null], ["fillgauge2", null], ["fillgauge3", null], ["fillgauge4", null], ["fillgauge5", null]]);
-    progressPumpMap = new Map();
-    initFillGauges();
+    /*a map of the meters on screen that represent & track the pump level
+     *Each map entry is of the form (pump-meter, UUID) where pump-meter
+     *represents an on-screen gauge, and UUID is the unique identifier of
+     *the pump th pump-meter is tracking
+     */
+    fillMeterMap = new Map();
 
-    //alert handler
+
+    /** 
+     *Used for handling & constructing alert messages on screen.
+     *
+     * @param {boolean} bResult - The result of the action that is being alerted on
+     * @param {string} sMessage - the alert message
+    */
     function alertHandler(bResult, sMessage) {
 
-        //create an empty div to be used for alerting
-        //assign it our alert message
+        //create an empty div to be used as a placeholder for our alert & assign
+        //our alert text
         var $div = $("<div></div>");
         $div.text(sMessage);
 
         //style the alert according to whether we
-        //succeeded or failed.
+        //succeeded or failed. NOTE: These are Bootstrap-specific styles
         if (bResult) {
             $div.addClass("alert alert-success");
         } else {
@@ -33,30 +42,45 @@ $(document).ready(function () {
         return;
     }
 
-    //call back function to handle intial connections
-    function connectHandler(bResult, sMessage) {
+    /**
+     * Performs further actions based on whether or not we are able to connect 
+     * to a given broker. The broker-specifics are set in an external JSON object
+     * read by pubsubplusbroker.js.
+     * 
+     * @param {boolean} bResult - result of the connection attempt to the broker
+     * @param {string} sMessage - message associated with the connection attempt
+     */
+    function brokerConnectHandler(bResult, sMessage) {
 
+        //generate an alert for our connection attempt
         alertHandler(bResult, sMessage);
+
         if (bResult) {
             //we connected fine, now try and subscribe
             broker.subscribe(alertHandler);
 
-            //broker.consume(alertHandler);
-            //broker.onQueueMessage(messageHandler);
+            //since the connection was OK, assign a listener for topic messages
             broker.onTopicMessage(messageHandler);
         }
 
         return;
     }
 
+    //fire up a new broker connection
     var broker = new PubSubPlusBroker();
-    broker.connect(connectHandler);
+    broker.connect(brokerConnectHandler);
 
-
+    //Initialize our on-screen pump meters
+    initFillGauges();
 })
 
+/**
+ * Initializes the on-screen pump meters (gauges) that will track how much
+ * gas has been consumed / "pumped".
+ */
 function initFillGauges() {
 
+    //setup gauge defaults. These are used by all meters
     var gaugeConfig = liquidFillGaugeDefaultSettings();
 
     gaugeConfig.circleColor = "#D4AB6A";
@@ -72,71 +96,92 @@ function initFillGauges() {
     gaugeConfig.waveHeight = 0.3;
     gaugeConfig.waveCount = 1;
 
+    //temp variable to hold the "current" meter being configured
     var fillgauge;
 
-    for (var i = 0; i < 5; i++) {
-        fillgauge = loadLiquidFillGauge("fillgauge" + (i + 1), 100, gaugeConfig);
-        progressPumpMap.set(fillgauge, null);
-    }
+    //iterate over all meters onscreen and initialize them
+    for (var i = 1; i < 6; i++) {
+        fillgauge = loadLiquidFillGauge("fillgauge" + i, 100, gaugeConfig);
 
-    /*var gauge1 = loadLiquidFillGauge("fillgauge1", 100, gaugeConfig);
-    var gauge2 = loadLiquidFillGauge("fillgauge2", 100, gaugeConfig);
-    var gauge3 = loadLiquidFillGauge("fillgauge3", 100, gaugeConfig);
-    var gauge4 = loadLiquidFillGauge("fillgauge4", 100, gaugeConfig);
-    var gauge5 = loadLiquidFillGauge("fillgauge5", 100, gaugeConfig);*/
+        /*insert the initialized fill meter into our map.
+         *for the moment, the UUID in the map is null since no pump has been assigned 
+         *to the gauge.
+        */
+        fillMeterMap.set(fillgauge, null);
+    }
 }
 
+/**
+ * Interprets and handles the JSON string published by each pump connected to the 
+ * dashboard.
+ * 
+ * @param {String} message - The message published by a given pump. Has to be a valid JSON string of the form
+ * 
+ *   {
+ *   "UUID": <a valid UUID>,
+ *   "type": <"start" | "update">,
+ *   "location" : <a string representing the geographic location of the pump e.g. "Toronto">
+ *   "value" : <a number indicating the current level of the pump>
+ *   }
+ */
 function messageHandler(message) {
 
-    console.info(message);
-
+    //convert the incoming string to JSON
     var jsonMessage = JSON.parse(message);
 
-    //determine the type of message (start or update)
-    //call the appropriate function
-    var msgtype = jsonMessage.type;
-
-    if (msgtype.toLowerCase() == "start") {
-        startGasPump(jsonMessage);
-    } else {
-        decrementPumpLevel(jsonMessage);
+    //determine what to do based on the message type we just received
+    switch (jsonMessage.type.toUpperCase()) {
+        case ("START"):
+            startPump(jsonMessage);
+            break;
+        case ("UPDATE"):
+            updatePumpLevel(jsonMessage);
+            break;
+        default:
+            console.warn("Unknown message type: '" + jsonMessage.type + "'");
     }
 }
 
-/*
-Called when a "START" message is received by 
-PubSub+ on the appropriate topic. This function
-assign a UUID to any available progress bar.
-Once assigned, any events originating from a pump
-with a given UUID are mapped to the appropriate progress bar.
-*/
-function startGasPump(message) {
+/**
+ * Assigns a UUID & location to a given gauge. 
+ * Thereafter, any events originating from a pump with a given UUID are reflected against
+ * the appropriate meter.
+ *  
+ * @param {Object} jsonMessage - Incoming JSON from the pump as parsed by messageHandler(...)
+ * 
+ */
+function startPump(jsonMessage) {
+
+    var i = 0;
 
     //iterate through our map till we find a progress bar without an associated "pump" (UUID)
     //and give it the UUID
-    for (var [k, v] of progressPumpMap) {
+    for (var [k, v] of fillMeterMap) {
+        i=i+1;
+
         if (v == null) {
-            progressPumpMap.set(k, message.UUID);
+            fillMeterMap.set(k, jsonMessage.UUID);
+            $('#pumpHeader' + i).text(jsonMessage.location);
             break;
         }
     }
 }
 
-/*
- Decrements a pump's fuel level
-*/
-function decrementPumpLevel(message) {
+/**
+ * Updates the gauge identified by 'UUID', with the given value.
+ * 
+ * @param {Object} jsonMessage - Incoming JSON from the pump as parsed by messageHandler(...) 
+ */
+function updatePumpLevel(jsonMessage) {
 
-    //get the pump associated with the given UUID
-    //then get the current progress
-    var uuid = message.UUID;
-    var pump = '';
+    //get the uuid in question
+    var uuid = jsonMessage.UUID;
+    var value = jsonMessage.value;
 
-
-    for (var [k, v] of progressPumpMap) {
-        if (uuid == v) {
-            k.value = k.value + 1;
-
+    //find the meter associated with this UUID & update it
+    for (var [k, v] of fillMeterMap) {
+        if (uuid == v && value>=0) {
+            k.update(jsonMessage.value);
             break;
         }
 
