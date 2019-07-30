@@ -25,9 +25,10 @@
 
 /*jslint es6 browser devel:true*/
 /*global solace*/
+import solace from "solclientjs";
 import { pubsubplus_config } from "./pubsubplus-config";
 
-export const SolaceClient = function (topicName,subscriberCallback) {
+export const SolaceClient = function (topicName, subscriberCallback) {
     'use strict';
     var solaceclient = {};
     solaceclient.session = null;

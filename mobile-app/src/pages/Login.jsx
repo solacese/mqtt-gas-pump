@@ -3,73 +3,79 @@ import { Redirect } from "react-router-dom";
 import { useInput } from "../shared-components/hooks";
 import Spinner from "../shared-components/Spinner";
 
-import { MQTTClient } from "../shared-components/MQTTClient";
-import  uuidv1 from "uuid/v1";
-
+import { mqtt_config } from "../shared-components/clients/mqtt-config";
+import { MQTTClient } from "../shared-components/clients/MQTTClient";
+import uuidv1 from "uuid/v1";
 
 /**
  * Login component lifecycle
  * 1) Initialization
- * After scanning a QR code, the mobile application will navigate to the login page
- * with a UUID.  This UUID will act as the unique identifier for the user's session.
+ * After scanning a QR code, the mobile application will navigate to this login page.
+ * The sessionId we'll use to integrate with the dashboard will be included as a queryString.
  *
- * 2) Prompt user input and wait for global session to start on dashboard
+ * 2) Prompt user input and wait for session to start on dashboard
  * Users are presented a basic form asking for a name to represent their gas station.
  * Upon entering a valid name, they will be shown a waiting screen until
- * the Solace client receives a "start" message on a predefined system level topic
+ * the MQTT client receives a "start" message on a predefined topic
  *
  * 3) Navigate to gas station page
- * When the Solace client receives a "start" message on the provided topic, it will
+ * When the MQTT client receives a "start" message on the provided topic, it will
  * know that the global session has started and will navigate to the gas-station page
- * with both an individual session ID (representing a single gas station) and a global
- * session ID (representing a session that is going to track each of the gas stations)
+ * with both a user ID (representing a single gas station) and a session ID
  */
 function Login(props) {
-  const [client, setClient] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [mqttClient, setMqttClient] = useState(null);
   const [sessionState, setSessionState] = useState("INPUT");
   const { value: name, bind: bindNameInput } = useInput("");
 
-  // Session ID from queryString
-  const params = new URLSearchParams(props.location.search);
-  const sessionId = params.get("sessionId"); // bar
-  const userId = uuidv1();
-  console.log("Session ID: ", sessionId);
-
-  // initialize MQTT client only once
+  // sessionId, userId, and MQTT Client configuration
   useEffect(() => {
+    let params = new URLSearchParams(props.location.search);
+    let sessionId = params.get("sessionId");
+    let userId = uuidv1();
     let client = MQTTClient(
-      "DEV",
-      "mrrwtxvkmpdxv.messaging.solace.cloud",
-      Number(20009),
-      "admin",
+      mqtt_config.mqtt_host,
+      Number(mqtt_config.mqtt_port),
       () => setSessionState("ACTIVE")
     );
-    setClient(client);
+
+    setUserId(userId);
+    setSessionId(sessionId);
+    setMqttClient(client);
   }, []);
 
   const handleSubmit = evt => {
     evt.preventDefault();
     if (name) {
-      client.send("login", name);
-      client.subscribe("sessionStart");
+      let msgPayload = JSON.stringify({name: name})
+      mqttClient.send(`${sessionId}/${mqtt_config.login_topic}`, msgPayload);
+      console.log(`Subscribing to ${sessionId}/${mqtt_config.start_topic}`);
+      mqttClient.subscribe(`${sessionId}/${mqtt_config.start_topic}`); // listen for start signal
       setSessionState("WAITING");
     } else {
       alert("Please enter a valid name!");
     }
   };
 
-  if (sessionState == "WAITING") {
-    return <Spinner />;
-  } else if (sessionState == "ACTIVE") {
-    return (
-      <Redirect to={{ pathname: "/gas-station", state: {sessionId: sessionId, name: name, userId: userId} }} />
-    );
-  } else {
-    return (
+  if (sessionState == "INPUT") {
+    return(
       <form onSubmit={handleSubmit}>
-        <label>Name:</label>
-        <input type="text" {...bindNameInput} />
-      </form>
+      <label>Name:</label>
+      <input type="text" {...bindNameInput} />
+    </form>
+    );
+  } else if (sessionState == "WAITING") {
+    return <Spinner />;
+  } else { // ACTIVE
+    return (
+      <Redirect
+        to={{
+          pathname: "/gas-station",
+          state: { sessionId: sessionId, name: name, userId: userId }
+        }}
+      />
     );
   }
 }

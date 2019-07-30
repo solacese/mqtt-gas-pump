@@ -13,7 +13,8 @@ import Logger from "../Logger";
 import { useContainerDimension, useWindowDimension, useGasPump, useLogger } from "../shared-components/hooks";
 import { SvgGasStationDiagram } from "../../public/icons";
 
-import { MQTTClient } from "../shared-components/MQTTClient";
+import { MQTTClient } from "../shared-components/clients/MQTTClient";
+import { mqtt_config } from "../shared-components/clients/mqtt-config";
 
 /**
  * Styling
@@ -129,8 +130,6 @@ function GasStationInterface(props) {
   const stationName = props.location.state.name;
   const userId = props.location.state.userId;
 
-  console.log(sessionId, stationName, userId);
-
   /* component logic */
   // enable logging
   const { logs, log, clearLogs } = useLogger([]);
@@ -139,13 +138,10 @@ function GasStationInterface(props) {
   const [client, setClient] = useState(null);
   useEffect(() => {
     let client = MQTTClient(
-      "DEV",
-      "mrrwtxvkmpdxv.messaging.solace.cloud",
-      Number(20009),
-      "admin",
+      mqtt_config.mqtt_host,
+      Number(mqtt_config.mqtt_port),
       () => console.log("RECEIVED SYS LEVEL MESSAGE")
     );
-    console.log(client);
     setClient(client);
   }, []);
 
