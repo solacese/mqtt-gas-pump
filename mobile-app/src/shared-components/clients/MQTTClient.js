@@ -1,8 +1,6 @@
 import "./PahoMQTT";
 import { mqtt_config } from "./mqtt-config";
 
-var uid = "test123"; // for now
-
 function onConnect(obj) {
   var client = obj.invocationContext; 
   client.isConnected = true;
@@ -16,9 +14,9 @@ function onFailure(obj) {
   client.isConnected = false;
 }
 
-export function MQTTClient(url, port, sysCallBack) {
+export function MQTTClient(url, port, stationId, sysCallBack) {
   var connection = {};
-  var client = new Paho.MQTT.Client(url, port, "/", uid);
+  var client = new Paho.MQTT.Client(url, port, "/", stationId);
   client.username = mqtt_config.username;
   client.pw = mqtt_config.password;
   client.isConnected = false;

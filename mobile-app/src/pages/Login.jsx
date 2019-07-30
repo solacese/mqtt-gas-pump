@@ -24,24 +24,25 @@ import uuidv1 from "uuid/v1";
  * with both a user ID (representing a single gas station) and a session ID
  */
 function Login(props) {
-  const [userId, setUserId] = useState(null);
+  const [stationId, setStationId] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [mqttClient, setMqttClient] = useState(null);
   const [sessionState, setSessionState] = useState("INPUT");
   const { value: name, bind: bindNameInput } = useInput("");
 
-  // sessionId, userId, and MQTT Client configuration
+  // sessionId, stationId, and MQTT Client configuration
   useEffect(() => {
     let params = new URLSearchParams(props.location.search);
     let sessionId = params.get("sessionId");
-    let userId = uuidv1();
+    let stationId = uuidv1();
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
+      stationId,
       () => setSessionState("ACTIVE")
     );
 
-    setUserId(userId);
+    setStationId(stationId);
     setSessionId(sessionId);
     setMqttClient(client);
   }, []);
@@ -49,7 +50,7 @@ function Login(props) {
   const handleSubmit = evt => {
     evt.preventDefault();
     if (name) {
-      let msgPayload = JSON.stringify({name: name})
+      let msgPayload = JSON.stringify({name: name, id: stationId})
       mqttClient.send(`${sessionId}/${mqtt_config.login_topic}`, msgPayload);
       console.log(`Subscribing to ${sessionId}/${mqtt_config.start_topic}`);
       mqttClient.subscribe(`${sessionId}/${mqtt_config.start_topic}`); // listen for start signal
@@ -62,9 +63,9 @@ function Login(props) {
   if (sessionState == "INPUT") {
     return(
       <form onSubmit={handleSubmit}>
-      <label>Name:</label>
-      <input type="text" {...bindNameInput} />
-    </form>
+        <label>Name:</label>
+        <input type="text" {...bindNameInput} />
+      </form>
     );
   } else if (sessionState == "WAITING") {
     return <Spinner />;
@@ -73,7 +74,7 @@ function Login(props) {
       <Redirect
         to={{
           pathname: "/gas-station",
-          state: { sessionId: sessionId, name: name, userId: userId }
+          state: { sessionId: sessionId, name: name, stationId: stationId }
         }}
       />
     );

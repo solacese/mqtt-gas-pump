@@ -1,108 +1,19 @@
-<!doctype html>
-<html lang="en">
-
-<head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="wale=1, shrink-to-fit=no">
-
-    <!--Solace specific styles-->
-    <link rel="stylesheet" href="../css/solace-style.css">
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
-        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
-
-    <!-- Used by the liquid fill gauges-->
-    <script src="http://d3js.org/d3.v3.min.js" language="JavaScript"></script>
-
-    <!--Internal Scripts-->
-    <script src="../common/lib/solclient-debug.js"></script>
-    <script src="../common/connectOptions.js"></script>
-    <script src="../common/pubsubplusbroker.js"></script>
-    <script src="liquidFillGauge.js"></script>
-    <script src="dashboard.js"></script>
-
-
-    <title>Gas Dashboard</title>
-</head>
-
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom shadow-sm">
-        <h1 class="navbar-brand">Solace</h1>
-    </nav>
-
-    <div class="container mt-5 text-center">
-
-        <div class="row">
-            <div class="col-md">
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h4 id="pumpHeader1" class="my-0 font-weight-normal">No Status</h4>
-                    </div>
-                    <div class="card-body mx-auto">
-                        <svg id="fillgauge1" width="97%" height="250"></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h4 id="pumpHeader2" class="my-0 font-weight-normal">No Status</h4>
-                    </div>
-                    <div class="card-body mx-auto">
-                        <svg id="fillgauge2" width="97%" height="250"></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h4 id="pumpHeader3" class="my-0 font-weight-normal">No Status</h4>
-                    </div>
-                    <div class="card-body mx-auto">
-                        <svg id="fillgauge3" width="97%" height="250"></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h4 id="pumpHeader4" class="my-0 font-weight-normal">No Status</h4>
-                    </div>
-                    <div class="card-body mx-auto">
-                        <svg id="fillgauge4" width="97%" height="250"></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h4 id="pumpHeader5" class="my-0 font-weight-normal">No Status</h4>
-                    </div>
-                    <div class="card-body mx-auto">
-                        <svg id="fillgauge5" width="97%" height="250"></svg>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md"></div>
-            <div class="col-md"></div>
-            <div class="col-md"></div>
-            <div class="col-md"></div>
-            <div class="col-md"></div>
-        </div>
-
-        <div class="row">
-            <div id="alerts" class="col-md"></div>
-        </div>
-    </div>
-
-</body>
-
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sunco Demo</title>
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
+    <style type="text/css">
+      body {
+        font-family: 'Lato';
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./src/index.js"></script>
+  </body>
 </html>

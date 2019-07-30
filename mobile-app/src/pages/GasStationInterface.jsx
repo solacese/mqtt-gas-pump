@@ -15,7 +15,6 @@ import { SvgGasStationDiagram } from "../../public/icons";
 
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
-import { start } from "repl";
 
 /**
  * Styling
@@ -127,9 +126,9 @@ function FuelTank({ fuelLevel, radius }) {
 
 function GasStationInterface(props) {
   // get params from redirect
-  const sessionId = 123;//props.location.state.sessionId;
-  const stationName = "Toronto";//props.location.state.name;
-  const userId = 123;//props.location.state.userId;
+  const sessionId = props.location.state.sessionId;
+  const stationName = props.location.state.name;
+  const stationId = props.location.state.stationId;
 
   /* component logic */
   // enable logging
@@ -141,6 +140,7 @@ function GasStationInterface(props) {
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
+      stationId,
       () => console.log("RECEIVED SYS LEVEL MESSAGE")
     );
     setClient(client);
@@ -157,15 +157,7 @@ function GasStationInterface(props) {
         if(flowState == "SLOW"){
           if(cycleCounter) {
             setFuelLevel(prevFuelLevel => {
-              client.send(
-                `suncor/${userId}/${stationName}/msg`, 
-                JSON.stringify({
-                  UUID: userId,
-                  type: start,
-                  location: stationName,
-                  value: 100
-                }));
-              //client.send(`gasStation/${sessionId}/${userId}/flow`, String(prevFuelLevel - flowRatePerSec));
+              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
               log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
               return (prevFuelLevel - flowRatePerSec);
             });
@@ -176,7 +168,7 @@ function GasStationInterface(props) {
         }
         if(flowState == "FAST"){
           setFuelLevel(prevFuelLevel => {
-            client.send(`gasStation/${sessionId}/${userId}/flow`, String(prevFuelLevel - flowRatePerSec));
+            client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
             log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
             return (prevFuelLevel - flowRatePerSec);
           });
@@ -242,7 +234,7 @@ function GasStationInterface(props) {
       </GasPumpContainer>
       <ButtonBar>
         <Button color={"#4CAF50"} onClick={() => {flowState="SLOW"}}>START PUMP</Button>
-        <Button color={"#f44336"}onClick={() => {flowState="STOP"}}>STOP PUMP</Button>
+        <Button color={"#f44336"} onClick={() => {flowState="STOP"}}>STOP PUMP</Button>
       </ButtonBar>
       <LoggerContainer>
         {flowState}
