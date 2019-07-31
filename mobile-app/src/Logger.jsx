@@ -13,14 +13,15 @@ const Container = styled.div`
 
 const FlexRow = styled.div`
   display: flex;
-  flex-direction: row;
 `;
 
 const Log = styled.div`
-  font-size: 0.75em;
+  font-size: 0.85em;
 `;
 
-const Row = styled.div``;
+const Row = styled.div`
+  display: flex;
+`;
 
 /**
  * Logic

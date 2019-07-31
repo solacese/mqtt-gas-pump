@@ -9,18 +9,20 @@ import { Flex } from "../shared-components/layout";
  * Styling
  */
 const Container = styled.div`
-  align-items: center;
   display: flex;
-  height: 100%;
   justify-content: center;
   width: 100%;
 `;
 
 const ConnectionForm = styled.div`
-  height: 50%;
-  min-height: 400px;
-  min-width: 400px;
-  width: 50%;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  margin-top: 25px;
+  padding: 25px;
 `;
 
 const FormGroup = styled.div`
@@ -31,10 +33,19 @@ const FormGroup = styled.div`
 
 const FormInput = styled.input`
   flex-grow: 1;
+  font-size: 1em;
 `;
 
 const FormLabel = styled.label`
-  font-size: 0.9em;
+  font-size: 1em;
+  font-weight: bold;
+  margin-bottom: 5px;
+`;
+
+const FormTitle = styled.div`
+  font-size: 1.15em;
+  font-weight: bold;
+  margin-bottom: 25px;
 `;
 
 const StartButton = styled.button`
@@ -43,9 +54,11 @@ const StartButton = styled.button`
   border-radius: 5px;
   color: white;
   display: inline-block;
+  font-size: 1.1em;
+  margin-top: 25px;
   padding: 10px;
   text-align: center;
-  width: 50%;
+  width: 100%;
 
   &:hover {
     filter: brightness(110%);
@@ -95,6 +108,9 @@ function ConnectionScreen() {
     return (
       <Container>
         <ConnectionForm>
+          <FormTitle>
+            Enter the connection details of your Solace PubSub+ Broker
+          </FormTitle>
           <form>
             <FormGroup>
               <FormLabel>Username:</FormLabel>

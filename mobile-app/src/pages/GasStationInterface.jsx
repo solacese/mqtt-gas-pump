@@ -10,63 +10,81 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import LiquidFillGauge from "react-liquid-gauge";
 import Logger from "../Logger";
-import { useContainerDimension, useWindowDimension, useGasPump, useLogger } from "../shared-components/hooks";
-import { SvgGasStationDiagram } from "../../public/icons";
-
+import { useWindowDimension, useLogger } from "../shared-components/hooks";
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
+
+import { SvgGasStationDiagram } from "../../public/icons";
 
 /**
  * Styling
  */
 
-const GasPumpContainer = styled.div`
-  border: 1px solid #aaaaaa;
+const MainContainer = styled.div`
+  align-items: center;
   display: flex;
-  justify-content: center;
-  position: relative;
+  flex-direction: column;
+  justify-items: center;
+  min-height: 100%;
+  row-gap: 10px;
+  width: 100%;
 `;
 
-const GasPumpDiagram = styled(SvgGasStationDiagram)`
-  height: 100%;
-  min-height: 100%;
-  width: 100%;
+const StationTitle = styled.div`
+  font-size: 1.4em;
+  margin-top: 10px;
+`;
+
+const FuelTankDiagram = styled.div`
+  align-items: center;
+  display: flex; 
+  flex-direction: column;
+  justify-content: center;
+  height: 300px;
+  margin-top: 10px;
+  min-height: 30vh;
+  min-width: 35vw;
+  position: relative;
+  width: 300px;
 `;
 
 const FuelTankOverlay = styled.div`
-  bottom: 20px;
-  height: 33%;
-  max-width: 33%;
+  bottom: 0px;
+  height: 120px;
   position: absolute;
-`;
-
-const MainContainer = styled.div`
-  display: grid;
-  grid-template-rows: 10% 45% 10% 35%;
-  grid-row-gap: 20px;
-  justify-items: center;
-  height: calc(100% - 60px);
-  width: 100%;
+  width: 120px;
 `;
 
 const LoggerContainer = styled.div`
-  width: 100%;
+  height: 200px;
+  margin-top: 10px;
+  min-height: 30vh;
+  min-width: 50vw;
+  width: 325px;
+`;
+
+const LoggerTitle = styled.div`
+  border-bottom: 1px solid #000000;
+  font-weight: bold;
+  margin-bottom: 10px;
 `;
 
 const Button = styled.button`
   background-color: ${props => props.color};
   border: none;
   color: white;
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
   display: inline-block;
+  font-size: 1.1em;
   margin-left: 20px;
   margin-right: 20px;
+  padding: 10px 20px;
+  text-align: center;
+  width: 125px;
 `;
 
 const ButtonBar = styled.div`
   display: flex;
+  margin-top: 10px;
 `;
 
 /**
@@ -133,7 +151,7 @@ function GasStationInterface(props) {
 
   /* component logic */
   // enable logging
-  const { logs, log, clearLogs } = useLogger([]);
+  const { logs, log, clearLogs } = useLogger(stationName, []);
 
   //MQTT client
   const [client, setClient] = useState(null);
@@ -158,9 +176,15 @@ function GasStationInterface(props) {
         if(flowState == "SLOW"){
           if(cycleCounter) {
             setFuelLevel(prevFuelLevel => {
-              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
-              log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
-              return (prevFuelLevel - flowRatePerSec);
+              if((prevFuelLevel - flowRatePerSec) > 0) {
+                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
+                log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
+                return (prevFuelLevel - flowRatePerSec);
+              } else {
+                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0}));
+                log(`Tank is EMPTY!`);
+                return 0;
+              }
             });
             cycleCounter= false;
           } else {
@@ -169,9 +193,15 @@ function GasStationInterface(props) {
         }
         if(flowState == "FAST"){
           setFuelLevel(prevFuelLevel => {
-            client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
-            log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
-            return (prevFuelLevel - flowRatePerSec);
+            if((prevFuelLevel - flowRatePerSec) > 0) {
+              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
+              log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
+              return (prevFuelLevel - flowRatePerSec);
+            } else {
+              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0}));
+              log(`Tank is EMPTY!`);
+              return 0;
+            }
           });
         }
       }, 500);
@@ -211,34 +241,34 @@ function GasStationInterface(props) {
   
   /* component styling */
   const { width, height } = useWindowDimension();
-  const fuelGaugeRadius = Math.round(width * 0.30)
+  const fuelGaugeRadius = Math.min(
+    Math.round(width * 0.30),
+    Math.round(height * 0.30)
+  );
 
-  // do some useRef magic and find out the dimensions of the parent container
-  const [diagramRef, diagramSize] = useContainerDimension();
-  console.log("Diagram size from renders:", diagramSize.width, diagramSize.height);
-  // Use the parent dimensions to relatively size and position the fuel tank
-  // This allows us to build a responsive layout that will look nice on mobile devices
-  // const fuelGaugeRadius = Math.min(
-  //   Math.round(diagramSize.height * 0.45),
-  //   Math.round(diagramSize.width * 0.4)
-  // );
   return (
     <MainContainer>
-      <p>
-        {stationName}
-      </p>
-      <GasPumpContainer>
-        <GasPumpDiagram sizingref={diagramRef}/>
+      <StationTitle>{stationName}</StationTitle>
+      <FuelTankDiagram onClick={() => {
+        if(flowState!="STOP"){
+          flowState="STOP";
+        } else {
+          flowState="SLOW";
+        }
+      }}>
+        <SvgGasStationDiagram height={"300px"}/>
         <FuelTankOverlay>
-          <FuelTank radius={fuelGaugeRadius} fuelLevel={currentFuelLevel} />
+          <FuelTank radius={115} fuelLevel={currentFuelLevel} />
         </FuelTankOverlay>
-      </GasPumpContainer>
+      </FuelTankDiagram>
       <ButtonBar>
-        <Button color={"#4CAF50"} onClick={() => {flowState="SLOW"}}>START PUMP</Button>
-        <Button color={"#f44336"} onClick={() => {flowState="STOP"}}>STOP PUMP</Button>
+        <Button color={"#4CAF50"} onClick={() => {flowState="SLOW"}}>START</Button>
+        <Button color={"#f44336"}onClick={() => {flowState="STOP"}}>STOP</Button>
       </ButtonBar>
       <LoggerContainer>
-        {flowState}
+        <LoggerTitle>
+          Event log
+        </LoggerTitle>
         <Logger logList={logs}/>
       </LoggerContainer>
     </MainContainer>

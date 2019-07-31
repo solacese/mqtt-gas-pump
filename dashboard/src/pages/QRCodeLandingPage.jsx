@@ -66,7 +66,7 @@ function QRCodeLandingPage(props) {
 
     // set up the session
     let sessionId = ((Math.random() * 0xffffff) << 0).toString(16);
-    let sessionUrl = `http://localhost:1234/login?sessionId=${sessionId}`;
+    let sessionUrl = `http://sunco-gas-station-demo-mobile.s3-website-us-east-1.amazonaws.com/login?sessionId=${sessionId}`;
     let solaceClient = SolaceClient(
       connectionDetails,
       `${sessionId}/${pubsubplus_config.login_topic}`,
