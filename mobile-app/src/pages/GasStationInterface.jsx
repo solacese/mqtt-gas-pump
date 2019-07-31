@@ -30,6 +30,7 @@ const GasPumpContainer = styled.div`
 const GasPumpDiagram = styled(SvgGasStationDiagram)`
   height: 100%;
   min-height: 100%;
+  width: 100%;
 `;
 
 const FuelTankOverlay = styled.div`
