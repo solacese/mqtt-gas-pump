@@ -18,9 +18,8 @@ A demo of a web application using the MQTT API that transforms your mobile phone
 
 This repository contains:
 
-1. **[mobile-web-app](mobile-web-app/):** A ReactJS application that simulates a gas-pump on your mobile phone
-2. **[pubsubplus-config.js](pubsubplus-config.js):** Connection information for the pubsub-plus broker
-3. **[pubsubplusbroker.js](common/pubsubplusbroker.js)** Code for connecting to a PubSub+ broker
+1. **[dashboard](dashboard/):** A ReactJS application that both controls the demo session and displays station data
+2. **[mobile-app](mobile-web-app/):** A ReactJS application that simulates a gas-pump on your mobile phone
 
 
 ## Checking out
@@ -34,13 +33,33 @@ cd mqtt-gas-pump
 
 ## Running the Demo
 
-To run the demo open the below html file in your default browser:
+### To run the demo, you'll first need to edit a few config files:
 
 ```
-start index.html
+dashboard/src/shared-components/solace/pubsubplus-config-EDITME.js
 ```
+This config file provides the details to connect to your Solace PubSub+ broker.  Fill it out using the details found in the "Solace Web Messaging" section of the "Connect" tab on your cloud broker's management portal.  You'll probably want to use the Secure WebSocket URI.  As for "login_topic" and "start_topic," this is a matter of preference; the app is configured to publish messages on these topics. 
 
-Use a mobile phone to scan the QR Code that pops up which will redirect your mobile phone's browser to a gas pump web-app.
+```
+mobile-app/src/shared-components/clients/mqtt-config-EDITME.js
+```
+Similarly, this is another config file that provides the details to connect to your Solace PubSub+ broker.  This file is used by an MQTT client.  Fill it out using the details found in the "MQTT" section of the "Connect" tab on your cloud broker's management portal.  For "mqtt_host," use the hostname of your broker—excluding the protocol prefix and port (e.g. somejumbleofletters.messaging.solace.cloud).  For "mqtt_port," use the port from the WebSocket Secured MQTT Host data URI.  
+   
+### Next, you'll need to make sure you have parcel installed for running your dev server and/or building the app:
+```
+npm install -g parcel-bundler
+```
+Parcel is awesome for JS development, check it out [here](https://parceljs.org/getting_started.html)
+
+### Once you have parcel installed, you can run the following commands from inside either of the two apps to run the server locally or build the app for distribution:
+```
+npm run dev
+npm run build
+```
+The output from the build command will be found in the dist/ folder at the root level of the app.  An easy way to host these files is to upload them to S3 and use the bucket for [static website hosting](https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html).
+
+### My servers are running, what now?
+Once you have the servers running for both the dashboard app and the mobile app, you'll want to navigate to the homepage of the dashboard server and follow the flow as prompted by the app.  
 
 ## Contributing
 
