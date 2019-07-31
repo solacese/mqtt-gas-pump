@@ -37,7 +37,7 @@ const StationTitle = styled.div`
 
 const FuelTankDiagram = styled.div`
   align-items: center;
-  display: flex; 
+  display: flex;
   flex-direction: column;
   justify-content: center;
   height: 300px;
@@ -91,9 +91,9 @@ const ButtonBar = styled.div`
  * Components
  */
 
-// gross global vars 
+// gross global vars
 var flowState = "STOP";
-var flowRatePerSec = 1;  
+var flowRatePerSec = 1;
 var cycleCounter = false;
 
 function getTimestamp() {
@@ -170,56 +170,80 @@ function GasStationInterface(props) {
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
-      {stationId: stationId, sessionId: sessionId},
-      () => {flowState = "STOP"}
+      { stationId: stationId, sessionId: sessionId },
+      () => {
+        flowState = "STOP";
+        let logWithTimestamp = `${getTimestamp()} STOP COMMAND RECEIVED!`;
+        log(logWithTimestamp);
+      }
     );
     setClient(client);
   }, []);
 
   // fuel tank logic
-  const [ currentFuelLevel, setFuelLevel ] = useState(100);
+  const [currentFuelLevel, setFuelLevel] = useState(100);
   //const [ flowState, setFlowState ] = useState("STOP");
   //const [ cycleCounter, setCycleCounter ] = useState(false);
 
   useEffect(() => {
-    if(client){
-      setInterval(function(){ 
-        if(flowState == "SLOW"){
-          if(cycleCounter) {
+    if (client) {
+      setInterval(function() {
+        if (flowState == "SLOW") {
+          if (cycleCounter) {
             setFuelLevel(prevFuelLevel => {
               // tried using a hook but it ended up adding dumb complexity, change this
-              if((prevFuelLevel - flowRatePerSec) > 0) {
-                let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`
+              if (prevFuelLevel - flowRatePerSec > 0) {
+                let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel -
+                  flowRatePerSec}`;
                 log(newLog);
                 let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec, log: logWithTimestamp}));
-                return (prevFuelLevel - flowRatePerSec);
+                client.send(
+                  `${sessionId}/${stationId}/flow`,
+                  JSON.stringify({
+                    fuelLevel: prevFuelLevel - flowRatePerSec,
+                    log: logWithTimestamp
+                  })
+                );
+                return prevFuelLevel - flowRatePerSec;
               } else {
-                let newLog = `Tank is EMPTY!`
+                let newLog = `Tank is EMPTY!`;
                 log(newLog);
                 let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0, log: logWithTimestamp}));
+                client.send(
+                  `${sessionId}/${stationId}/flow`,
+                  JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
+                );
                 return 0;
               }
             });
-            cycleCounter= false;
+            cycleCounter = false;
           } else {
             cycleCounter = true;
           }
         }
-        if(flowState == "FAST"){
+        if (flowState == "FAST") {
           setFuelLevel(prevFuelLevel => {
-            if((prevFuelLevel - flowRatePerSec) > 0) {
-              let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`
+            if (prevFuelLevel - flowRatePerSec > 0) {
+              let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel -
+                flowRatePerSec}`;
               log(newLog);
               let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec, log: logWithTimestamp}));
-              return (prevFuelLevel - flowRatePerSec);
+              client.send(
+                `${sessionId}/${stationId}/flow`,
+                JSON.stringify({
+                  fuelLevel: prevFuelLevel - flowRatePerSec,
+                  log: logWithTimestamp
+                })
+              );
+              return prevFuelLevel - flowRatePerSec;
             } else {
-              let newLog = `Tank is EMPTY!`
+              let newLog = `Tank is EMPTY!`;
               log(newLog);
               let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0, log: logWithTimestamp}));
+              client.send(
+                `${sessionId}/${stationId}/flow`,
+                JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
+              );
               return 0;
             }
           });
@@ -227,31 +251,33 @@ function GasStationInterface(props) {
       }, 500);
     }
   }, [client]);
-  
+
   if (window.DeviceMotionEvent) {
-    window.addEventListener('deviceorientation', function handleOrientation(event){
+    window.addEventListener("deviceorientation", function handleOrientation(
+      event
+    ) {
       // we only care about left/right rotations, around the z-axis
       let alpha = event.alpha;
 
       // STOP FLOWSTATE
-      if(alpha > 0 && alpha < 30) {
-        if(flowState!="STOP"){
+      if (alpha > 0 && alpha < 30) {
+        if (flowState != "STOP") {
           flowState = "STOP";
           //setFlowState("STOP");
         }
       }
       // SLOW FLOWSTATE:
       // abs(30 degree)threshhold crossed: we want the tank to pour at 1%/sec
-      if(alpha > 30 && alpha < 90) {
-        if(flowState!="SLOW"){
+      if (alpha > 30 && alpha < 90) {
+        if (flowState != "SLOW") {
           flowState = "SLOW";
           //setFlowState("SLOW");
         }
-      } 
+      }
       // FAST FLOWSTATE:
       // abs(90 degree) threshhold crossed: we want the tank to pour at 1%/half sec
-      if(alpha > 90 && alpha < 180) {
-        if(flowState!="FAST"){
+      if (alpha > 90 && alpha < 180) {
+        if (flowState != "FAST") {
           flowState = "FAST";
           //setFlowState("FAST");
         }
@@ -263,20 +289,32 @@ function GasStationInterface(props) {
     <MainContainer>
       <StationTitle>{stationName}</StationTitle>
       <FuelTankDiagram>
-        <SvgGasStationDiagram height={"300px"}/>
+        <SvgGasStationDiagram height={"300px"} />
         <FuelTankOverlay>
           <FuelTank radius={115} fuelLevel={currentFuelLevel} />
         </FuelTankOverlay>
       </FuelTankDiagram>
       <ButtonBar>
-        <Button color={"#4CAF50"} onClick={() => {flowState="SLOW"}}>START</Button>
-        <Button color={"#f44336"}onClick={() => {flowState="STOP"}}>STOP</Button>
+        <Button
+          color={"#4CAF50"}
+          onClick={() => {
+            flowState = "SLOW";
+          }}
+        >
+          START
+        </Button>
+        <Button
+          color={"#f44336"}
+          onClick={() => {
+            flowState = "STOP";
+          }}
+        >
+          STOP
+        </Button>
       </ButtonBar>
       <LoggerContainer>
-        <LoggerTitle>
-          Event log
-        </LoggerTitle>
-        <Logger logList={logs}/>
+        <LoggerTitle>Event log</LoggerTitle>
+        <Logger logList={logs} />
       </LoggerContainer>
     </MainContainer>
   );
