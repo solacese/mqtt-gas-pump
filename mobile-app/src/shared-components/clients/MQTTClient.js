@@ -1,10 +1,15 @@
 import "./PahoMQTT";
 import { mqtt_config } from "./mqtt-config";
 
+var sessionId;
+var stationId;
+
 function onConnect(obj) {
   var client = obj.invocationContext; 
   client.isConnected = true;
   console.log("Connected to Solace Cloud!");
+  console.log(`Subscribing to ${sessionId}/${stationId}/SYS`);
+  client.subscribe(`${sessionId}/${stationId}/SYS`); // listen for STOP signals
 }
 
 function onFailure(obj) {
@@ -14,7 +19,12 @@ function onFailure(obj) {
   client.isConnected = false;
 }
 
-export function MQTTClient(url, port, stationId, sysCallBack) {
+export function MQTTClient(url, port, sessionObj, sysCallBack) {
+  // set up session variables for subscribing to sys level msgs
+  sessionId = sessionObj["sessionId"];
+  stationId = sessionObj["stationId"];
+  
+  // client config
   var connection = {};
   var client = new Paho.MQTT.Client(url, port, "/", stationId);
   client.username = mqtt_config.username;

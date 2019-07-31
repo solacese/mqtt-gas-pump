@@ -96,6 +96,17 @@ var flowState = "STOP";
 var flowRatePerSec = 1;  
 var cycleCounter = false;
 
+function getTimestamp() {
+  var now = new Date();
+  var time = [
+    ("0" + now.getHours()).slice(-2),
+    ("0" + now.getMinutes()).slice(-2),
+    ("0" + now.getSeconds()).slice(-2)
+  ];
+  var timestamp = "[" + time.join(":") + "] ";
+  return timestamp;
+}
+
 function FuelTank({ fuelLevel, radius }) {
   // color configuration
   let fillColor;
@@ -159,8 +170,8 @@ function GasStationInterface(props) {
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
-      stationId,
-      () => console.log("RECEIVED SYS LEVEL MESSAGE")
+      {stationId: stationId, sessionId: sessionId},
+      () => {flowState = "STOP"}
     );
     setClient(client);
   }, []);
@@ -176,13 +187,18 @@ function GasStationInterface(props) {
         if(flowState == "SLOW"){
           if(cycleCounter) {
             setFuelLevel(prevFuelLevel => {
+              // tried using a hook but it ended up adding dumb complexity, change this
               if((prevFuelLevel - flowRatePerSec) > 0) {
-                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
-                log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
+                let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`
+                log(newLog);
+                let logWithTimestamp = `${getTimestamp()} ${newLog}`;
+                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec, log: logWithTimestamp}));
                 return (prevFuelLevel - flowRatePerSec);
               } else {
-                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0}));
-                log(`Tank is EMPTY!`);
+                let newLog = `Tank is EMPTY!`
+                log(newLog);
+                let logWithTimestamp = `${getTimestamp()} ${newLog}`;
+                client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0, log: logWithTimestamp}));
                 return 0;
               }
             });
@@ -194,12 +210,16 @@ function GasStationInterface(props) {
         if(flowState == "FAST"){
           setFuelLevel(prevFuelLevel => {
             if((prevFuelLevel - flowRatePerSec) > 0) {
-              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec}));
-              log(`Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`);
+              let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel - flowRatePerSec}`
+              log(newLog);
+              let logWithTimestamp = `${getTimestamp()} ${newLog}`;
+              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: prevFuelLevel - flowRatePerSec, log: logWithTimestamp}));
               return (prevFuelLevel - flowRatePerSec);
             } else {
-              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0}));
-              log(`Tank is EMPTY!`);
+              let newLog = `Tank is EMPTY!`
+              log(newLog);
+              let logWithTimestamp = `${getTimestamp()} ${newLog}`;
+              client.send(`${sessionId}/${stationId}/flow`, JSON.stringify({fuelLevel: 0, log: logWithTimestamp}));
               return 0;
             }
           });
@@ -238,24 +258,11 @@ function GasStationInterface(props) {
       }
     });
   }
-  
-  /* component styling */
-  const { width, height } = useWindowDimension();
-  const fuelGaugeRadius = Math.min(
-    Math.round(width * 0.30),
-    Math.round(height * 0.30)
-  );
 
   return (
     <MainContainer>
       <StationTitle>{stationName}</StationTitle>
-      <FuelTankDiagram onClick={() => {
-        if(flowState!="STOP"){
-          flowState="STOP";
-        } else {
-          flowState="SLOW";
-        }
-      }}>
+      <FuelTankDiagram>
         <SvgGasStationDiagram height={"300px"}/>
         <FuelTankOverlay>
           <FuelTank radius={115} fuelLevel={currentFuelLevel} />

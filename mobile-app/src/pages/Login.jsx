@@ -99,7 +99,7 @@ function Login(props) {
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
-      stationId,
+      {stationId: stationId, sessionId: sessionId},
       () => setSessionState("ACTIVE")
     );
 
