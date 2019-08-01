@@ -1,9 +1,16 @@
+/**
+ * Dashboard.jsx
+ * Displays all connected stations and provides a control panel for sending command & control instructions.
+ * Each station has its own fuel tank and event log, which corresponds to the fuel tank state of
+ * the station's associated mobile application session.
+ * @author Andrew Roberts
+ */
+
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { SolaceClient } from "../shared-components/solace/solace-client";
 import LiquidFillGauge from "react-liquid-gauge";
 import Logger from "../Logger";
-import { Flex } from "../shared-components/layout";
 
 /**
  * Styling
@@ -17,6 +24,18 @@ const Button = styled.button`
   font-size: 0.8em;
   padding: 10px 20px;
   text-align: center;
+`;
+
+const LoggerContainer = styled.div`
+  height: 75px;
+  margin-top: 10px;
+  width: 300px;
+`;
+
+const LoggerTitle = styled.div`
+  border-bottom: 1px solid #000000;
+  font-weight: bold;
+  margin-bottom: 10px;
 `;
 
 const MainContainer = styled.div`
@@ -77,18 +96,6 @@ const StationRow = styled.div`
   padding: 10px;
 `;
 
-const LoggerContainer = styled.div`
-  height: 75px;
-  margin-top: 10px;
-  width: 300px;
-`;
-
-const LoggerTitle = styled.div`
-  border-bottom: 1px solid #000000;
-  font-weight: bold;
-  margin-bottom: 10px;
-`;
-
 /**
  * Components
  */
@@ -104,6 +111,12 @@ function getTimestamp() {
   return timestamp;
 }
 
+/**
+ * FuelTank
+ * Custom implementation of LiquidFillGauge, a prebuilt liquid gauge display built on top of D3.
+ * Fuel tank color indicator changes from GREEN => YELLOW => ORANGE => RED based on the fuel level.
+ * Read up on the config options here: https://github.com/trendmicro-frontend/react-liquid-gauge
+ */
 function FuelTank({ fuelLevel, radius }) {
   // color configuration
   let fillColor;
@@ -173,15 +186,18 @@ function ControlPanel({ sessionId, stations }) {
         .map((key, index) => {
           let station = stations[key];
           return (
-            <StationRow color={index % 2}>
+            <StationRow key={key} color={index % 2}>
               <div>{station.name}</div>
-              <Button onClick={function stopPump() {
-                console.log(`SENDING MESSAGE TO ${sessionId}/${station.id}/SYS`)
-                station.solaceClient.publish(
-                  `${sessionId}/${station.id}/SYS`,
-                  JSON.stringify({ command: "STOP" })
-                );
-              }}>STOP PUMP</Button>
+              <Button
+                onClick={function stopPump() {
+                  station.solaceClient.publish(
+                    `${sessionId}/${station.id}/SYS`,
+                    JSON.stringify({ command: "STOP" })
+                  );
+                }}
+              >
+                STOP PUMP
+              </Button>
             </StationRow>
           );
         })}
@@ -190,12 +206,14 @@ function ControlPanel({ sessionId, stations }) {
 }
 
 function Dashboard(props) {
-  // state
-  const [connectionDetails, setConnectionDetails] = useState({});
-  const [sessionId, setSessionId] = useState(null);
-  const [stations, setStations] = useState({});
+  // session state
+  const [session, setSession] = useState({
+    connectionDetails: null,
+    sessionId: null,
+    stations: {}
+  });
 
-  // get state from navigation, initialize solace clients for stations
+  // set up session
   useEffect(() => {
     const connectionDetails = props.location.state.connectionDetails;
     const sessionId = props.location.state.sessionId;
@@ -212,32 +230,51 @@ function Dashboard(props) {
       let stationObj = stations[stationId];
       let solaceClient = SolaceClient(
         connectionDetails,
-        `${sessionId}/${stationObj.id}/*`, // subscribe on station specific topic
+        `${sessionId}/${stationObj.id}/*`, // subscribe on topic specific to station
         function msgReceived(message) {
+          // this callback function gets triggered when the client receives a message
+          // from the mobile applications.  Currently, it expects either a stop command
+          // or a fuel level update.
+          // - STOP COMMAND MESSAGE FORMAT: { command: "STOP" }
+          // - FUEL LEVEL UPDATE MESSAGE FORMAT: { fuelLevel: num, log: string }
           let msgJson = JSON.parse(message);
-          if(msgJson["command"]=="STOP"){
-            setStations(prevStations => {
+          if (msgJson["command"] == "STOP") {
+            setSession(function setSessionCallback(prevSession) {
+              // this syntax is pretty handy in react
+              // it means to preserve everything in the previous state
+              // except what is explicitly specified, in this case stations and its associated logs
               return {
-                ...prevStations,
-                [stationObj.id]: {
-                  ...prevStations[stationObj.id],
-                  logs: [...prevStations[stationObj.id].logs, `${getTimestamp()} STOP COMMAND RECEIVED!`]
+                ...prevSession,
+                stations: {
+                  ...prevSession.stations,
+                  [stationObj.id]: {
+                    ...prevSession.stations[stationObj.id],
+                    logs: [
+                      ...prevSession.stations[stationObj.id].logs,
+                      `${getTimestamp()} STOP COMMAND RECEIVED!`
+                    ]
+                  }
                 }
               };
             });
-          } else{
-            setStations(prevStations => {
+          } else {
+            setSession(function setSessionCallback(prevSession) {
               return {
-                ...prevStations,
-                [stationObj.id]: {
-                  ...prevStations[stationObj.id],
-                  fuelLevel: Number(msgJson.fuelLevel),
-                  logs: [...prevStations[stationObj.id].logs, msgJson.log]
+                ...prevSession,
+                stations: {
+                  ...prevSession.stations,
+                  [stationObj.id]: {
+                    ...prevSession.stations[stationObj.id],
+                    fuelLevel: Number(msgJson.fuelLevel),
+                    logs: [
+                      ...prevSession.stations[stationObj.id].logs,
+                      msgJson.log
+                    ]
+                  }
                 }
               };
             });
           }
-
         }
       );
       solaceClient.connectToSolace();
@@ -247,21 +284,23 @@ function Dashboard(props) {
       stationObjs[stationId] = stationObj;
     }
 
-    setConnectionDetails(connectionDetails);
-    setSessionId(sessionId);
-    setStations(stationObjs);
+    setSession({
+      connectionDetails: connectionDetails,
+      sessionId: sessionId,
+      stations: stationObjs
+    });
   }, []);
 
   return (
     <MainContainer>
-      <ControlPanel sessionId={sessionId} stations={stations} />
+      <ControlPanel sessionId={session.sessionId} stations={session.stations} />
       <StationCardList>
-        {Object.keys(stations)
+        {Object.keys(session.stations)
           .sort()
           .map((key, index) => {
-            let station = stations[key];
+            let station = session.stations[key];
             return (
-              <StationCard>
+              <StationCard key={key}>
                 <StationObject station={station} />
               </StationCard>
             );
