@@ -173,7 +173,7 @@ function GasStationInterface(props) {
       { stationId: stationId, sessionId: sessionId },
       () => {
         flowState = "STOP";
-        let logWithTimestamp = `${getTimestamp()} STOP COMMAND RECEIVED!`;
+        let logWithTimestamp = `STOP COMMAND RECEIVED!`;
         log(logWithTimestamp);
       }
     );
