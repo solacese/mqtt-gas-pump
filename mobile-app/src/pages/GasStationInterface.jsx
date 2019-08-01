@@ -1,15 +1,15 @@
 /**
  * GasPumpInterface.jsx
- * This component mimics the behavior of a gas pump by detecting device orientation detection and 
+ * This component mimics the behavior of a gas pump by detecting device orientation detection and
  * managing a virtual fuel tank's flow state.  All messages sent by this component are consumed
- * by the parent application's dashboard.  
+ * by the parent application's dashboard.
  * @author Andrew Roberts
  */
 
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Logger from "../shared-components/Logger";
-import { useLogger } from "../shared-components/hooks";
+import { useInterval, useLogger } from "../shared-components/hooks";
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
 import LiquidFillGauge from "react-liquid-gauge";
@@ -86,15 +86,11 @@ const StationTitle = styled.div`
   margin-top: 10px;
 `;
 
-
 /**
  * Components
  */
 
 // gross global vars
-var flowState = "STOP";
-var flowRatePerSec = 1;
-var cycleCounter = false;
 
 function getTimestamp() {
   var now = new Date();
@@ -155,40 +151,38 @@ function FuelTank({ fuelLevel, radius }) {
 }
 
 function GasStationInterface(props) {
-  /**
-   * STATE
-   */
   // session details
   const [sessionId, setSessionId] = useState(null);
   const [stationId, setStationId] = useState(null);
   const [stationName, setStationName] = useState(null);
   // MQTT client
   const [client, setClient] = useState(null);
-  // logger
-  const { logs, log } = useLogger([]);
   // fuel tank state
-  const [delay, setDelay] = useState(1000);
-  const [isRunning, setIsRunning] = useState(true);
-  const [currentFuelLevel, setFuelLevel] = useState(100);
+  const [flowOptions, setFlowOptions] = useState({
+    delay: 1000,
+    flowRatePerSec: 1,
+    isRunning: false
+  });
+  const [fuelTankState, setFuelTankState] = useState({
+    fuelLevel: 100,
+    logs: []
+  });
 
-  useInterval(() => {
-    setCount(count + 1);
-  }, isRunning ? delay : null);
-
+  // set up session and MQTT client
   useEffect(() => {
-    // 
+    // get session config details from navigation props
     const sessionId = props.location.state.sessionId;
     const stationId = props.location.state.stationId;
     const stationName = props.location.state.name;
-    let sessionConfig = {stationId: stationId, sessionId: sessionId};
-    // initialize MQTT client 
+    // initialize MQTT client
+    let sessionConfig = { stationId: stationId, sessionId: sessionId };
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
       sessionConfig,
       function messageReceived() {
         // right now, we're only supporting sending STOP commands to the mobile app
-        // If you'd like to extend this demo and include more controls, 
+        // If you'd like to extend this demo and include more controls,
         // add some conditionals here (e.g. if(msg.command == "START"){...} )
         flowState = "STOP";
         log("STOP COMMAND RECEIVED!");
@@ -196,117 +190,79 @@ function GasStationInterface(props) {
     );
 
     setClient(client);
+    setSessionId(sessionId);
+    setStationId(stationId);
+    setStationName(stationName);
   }, []);
 
-  /* component logic */
-
-
-  // fuel tank logic
-
-  const [intervalId, setIntervalId] = useState(null);
-  //const [ flowState, setFlowState ] = useState("STOP");
-  //const [ cycleCounter, setCycleCounter ] = useState(false);
-
-  useEffect(() => {
-    if (client && !intervalId) {
-      let intervalId = setInterval(function() {
-        if (flowState == "SLOW") {
-          if (cycleCounter) {
-            setFuelLevel(prevFuelLevel => {
-              // tried using a hook but it ended up adding dumb complexity, change this
-              if (prevFuelLevel - flowRatePerSec > 0) {
-                let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel -
-                  flowRatePerSec}`;
-                log(newLog);
-                let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-                client.send(
-                  `${sessionId}/${stationId}/flow`,
-                  JSON.stringify({
-                    fuelLevel: prevFuelLevel - flowRatePerSec,
-                    log: logWithTimestamp
-                  })
-                );
-                return prevFuelLevel - flowRatePerSec;
-              } else {
-                let newLog = `Tank is EMPTY!`;
-                log(newLog);
-                let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-                client.send(
-                  `${sessionId}/${stationId}/flow`,
-                  JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
-                );
-                return 0;
-              }
-            });
-            cycleCounter = false;
-          } else {
-            cycleCounter = true;
-          }
-        }
-        if (flowState == "FAST") {
-          setFuelLevel(prevFuelLevel => {
-            if (prevFuelLevel - flowRatePerSec > 0) {
-              let newLog = `Decremented tank from ${prevFuelLevel} to ${prevFuelLevel -
-                flowRatePerSec}`;
-              log(newLog);
-              let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-              client.send(
-                `${sessionId}/${stationId}/flow`,
-                JSON.stringify({
-                  fuelLevel: prevFuelLevel - flowRatePerSec,
-                  log: logWithTimestamp
-                })
-              );
-              return prevFuelLevel - flowRatePerSec;
-            } else {
-              let newLog = `Tank is EMPTY!`;
-              log(newLog);
-              let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-              client.send(
-                `${sessionId}/${stationId}/flow`,
-                JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
-              );
-              return 0;
-            }
-          });
-        }
-      }, 500);
-      setIntervalId(intervalId);
-    }
-  }, [client]);
-
+  // set up device orientation detection logic
   if (window.DeviceMotionEvent) {
     window.addEventListener("deviceorientation", function handleOrientation(
       event
     ) {
-      // we only care about left/right rotations, around the z-axis
+      // we only care about device rotation to the left
+      // alpha === z-axis
+      // some reference points:
+      // 0 degrees on z-axis = phone is vertical with top facing up
+      // 90 degrees on z-axis = phone horizontal with top facing to left
+      // 180 degrees on z-axis = phone vertical with top facing down
       let alpha = event.alpha;
 
-      // STOP FLOWSTATE
-      if (alpha > 0 && alpha < 30) {
-        if (flowState != "STOP") {
-          flowState = "STOP";
-          //setFlowState("STOP");
-        }
+      // phone is upright, stop flow
+      if (alpha < 30) {
+        setFlowOptions({ ...flowOptions, delay: 1000, isRunning: false });
       }
-      // SLOW FLOWSTATE:
-      // abs(30 degree)threshhold crossed: we want the tank to pour at 1%/sec
+      // phone is between 30 and 90 degrees, tick 1% every second
       if (alpha > 30 && alpha < 90) {
-        if (flowState != "SLOW") {
-          flowState = "SLOW";
-          //setFlowState("SLOW");
-        }
+        setFlowOptions({ ...flowOptions, delay: 1000, isRunning: true });
       }
-      // FAST FLOWSTATE:
-      // abs(90 degree) threshhold crossed: we want the tank to pour at 1%/half sec
+      // phone is between 90 and 180 degrees, tick 1% every half second
       if (alpha > 90 && alpha < 180) {
-        if (flowState != "FAST") {
-          flowState = "FAST";
-          //setFlowState("FAST");
-        }
+        setFlowOptions({ ...flowOptions, delay: 500, isRunning: false });
       }
     });
   }
+
+  // set up fuel tank logic
+  useInterval(
+    function useIntervalCallback() {
+      if (client) {
+        setFuelTankState(function setFuelTankStateCallback(prevFuelTankState) {
+          console.log("INSIDE SETFUEL CALLBACK", flowOptions);
+          if ((prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec) > 0) {
+            let newLog = `Decremented tank from ${
+              prevFuelTankState.fuelLevel
+            } to ${prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec}`;
+            let logWithTimestamp = `${getTimestamp()} ${newLog}`;
+            console.log("INSIDE SETFUEL CALLBACK CONDITIONAL");
+            client.send(
+              `${sessionId}/${stationId}/flow`,
+              JSON.stringify({
+                fuelLevel: prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec,
+                log: logWithTimestamp
+              })
+            );
+            return {
+              fuelLevel:
+                prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec,
+              logs: [...prevFuelTankState.logs, logWithTimestamp]
+            };
+          } else {
+            let logWithTimestamp = `${getTimestamp()} Tank is EMPTY!`;
+            client.send(
+              `${sessionId}/${stationId}/flow`,
+              JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
+            );
+            return {
+              fuelLevel: 0,
+              logs: [...prevFuelTankState.logs, logWithTimestamp]
+            };
+          }
+        });
+      }
+    },
+    flowOptions.isRunning ? flowOptions.delay : null
+  );
 
   return (
     <MainContainer>
@@ -314,14 +270,14 @@ function GasStationInterface(props) {
       <FuelTankDiagram>
         <SvgGasStationDiagram height={"300px"} />
         <FuelTankOverlay>
-          <FuelTank radius={115} fuelLevel={currentFuelLevel} />
+          <FuelTank radius={115} fuelLevel={fuelTankState.fuelLevel} />
         </FuelTankOverlay>
       </FuelTankDiagram>
       <ButtonBar>
         <Button
           color={"#4CAF50"}
           onClick={() => {
-            flowState = "SLOW";
+            setFlowOptions({ ...flowOptions, delay: 1000, isRunning: true });
           }}
         >
           START
@@ -329,7 +285,7 @@ function GasStationInterface(props) {
         <Button
           color={"#f44336"}
           onClick={() => {
-            flowState = "STOP";
+            setFlowOptions({ ...flowOptions, delay: 1000, isRunning: false });
           }}
         >
           STOP
@@ -337,7 +293,7 @@ function GasStationInterface(props) {
       </ButtonBar>
       <LoggerContainer>
         <LoggerTitle>Event log</LoggerTitle>
-        <Logger logList={logs} />
+        <Logger logList={fuelTankState.logs} />
       </LoggerContainer>
     </MainContainer>
   );

@@ -15,7 +15,7 @@ function useLogger(logList) {
   const [logs, setLogs] = useState(logList);
   return {
     logs,
-    log: newLog => {
+    log: function(newLog) {
       setLogs(prevLogs => [...prevLogs, `[${getTimestamp()}] ${newLog}`]);
     },
     clearLogs: () => setLogs([])
