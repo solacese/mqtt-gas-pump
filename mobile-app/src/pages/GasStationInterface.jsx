@@ -1,24 +1,41 @@
 /**
- * GasPump.jsx
- *
- * Description goes here
- *
+ * GasPumpInterface.jsx
+ * This component mimics the behavior of a gas pump by detecting device orientation detection and 
+ * managing a virtual fuel tank's flow state.  All messages sent by this component are consumed
+ * by the parent application's dashboard.  
  * @author Andrew Roberts
  */
 
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import LiquidFillGauge from "react-liquid-gauge";
-import Logger from "../Logger";
-import { useWindowDimension, useLogger } from "../shared-components/hooks";
+import Logger from "../shared-components/Logger";
+import { useLogger } from "../shared-components/hooks";
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
-
+import LiquidFillGauge from "react-liquid-gauge";
 import { SvgGasStationDiagram } from "../../public/icons";
 
 /**
  * Styling
  */
+
+const Button = styled.button`
+  background-color: ${props => props.color};
+  border: none;
+  color: white;
+  display: inline-block;
+  font-size: 1.1em;
+  margin-left: 20px;
+  margin-right: 20px;
+  padding: 10px 20px;
+  text-align: center;
+  width: 125px;
+`;
+
+const ButtonBar = styled.div`
+  display: flex;
+  margin-top: 10px;
+`;
 
 const MainContainer = styled.div`
   align-items: center;
@@ -28,11 +45,6 @@ const MainContainer = styled.div`
   min-height: 100%;
   row-gap: 10px;
   width: 100%;
-`;
-
-const StationTitle = styled.div`
-  font-size: 1.4em;
-  margin-top: 10px;
 `;
 
 const FuelTankDiagram = styled.div`
@@ -69,23 +81,11 @@ const LoggerTitle = styled.div`
   margin-bottom: 10px;
 `;
 
-const Button = styled.button`
-  background-color: ${props => props.color};
-  border: none;
-  color: white;
-  display: inline-block;
-  font-size: 1.1em;
-  margin-left: 20px;
-  margin-right: 20px;
-  padding: 10px 20px;
-  text-align: center;
-  width: 125px;
-`;
-
-const ButtonBar = styled.div`
-  display: flex;
+const StationTitle = styled.div`
+  font-size: 1.4em;
   margin-top: 10px;
 `;
+
 
 /**
  * Components
@@ -155,39 +155,61 @@ function FuelTank({ fuelLevel, radius }) {
 }
 
 function GasStationInterface(props) {
-  // get params from redirect
-  const sessionId = props.location.state.sessionId;
-  const stationName = props.location.state.name;
-  const stationId = props.location.state.stationId;
-
-  /* component logic */
-  // enable logging
-  const { logs, log, clearLogs } = useLogger(stationName, []);
-
-  //MQTT client
+  /**
+   * STATE
+   */
+  // session details
+  const [sessionId, setSessionId] = useState(null);
+  const [stationId, setStationId] = useState(null);
+  const [stationName, setStationName] = useState(null);
+  // MQTT client
   const [client, setClient] = useState(null);
+  // logger
+  const { logs, log } = useLogger([]);
+  // fuel tank state
+  const [delay, setDelay] = useState(1000);
+  const [isRunning, setIsRunning] = useState(true);
+  const [currentFuelLevel, setFuelLevel] = useState(100);
+
+  useInterval(() => {
+    setCount(count + 1);
+  }, isRunning ? delay : null);
+
   useEffect(() => {
+    // 
+    const sessionId = props.location.state.sessionId;
+    const stationId = props.location.state.stationId;
+    const stationName = props.location.state.name;
+    let sessionConfig = {stationId: stationId, sessionId: sessionId};
+    // initialize MQTT client 
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
-      { stationId: stationId, sessionId: sessionId },
-      () => {
+      sessionConfig,
+      function messageReceived() {
+        // right now, we're only supporting sending STOP commands to the mobile app
+        // If you'd like to extend this demo and include more controls, 
+        // add some conditionals here (e.g. if(msg.command == "START"){...} )
         flowState = "STOP";
-        let logWithTimestamp = `STOP COMMAND RECEIVED!`;
-        log(logWithTimestamp);
+        log("STOP COMMAND RECEIVED!");
       }
     );
+
     setClient(client);
   }, []);
 
+  /* component logic */
+
+
   // fuel tank logic
-  const [currentFuelLevel, setFuelLevel] = useState(100);
+
+  const [intervalId, setIntervalId] = useState(null);
   //const [ flowState, setFlowState ] = useState("STOP");
   //const [ cycleCounter, setCycleCounter ] = useState(false);
 
   useEffect(() => {
-    if (client) {
-      setInterval(function() {
+    if (client && !intervalId) {
+      let intervalId = setInterval(function() {
         if (flowState == "SLOW") {
           if (cycleCounter) {
             setFuelLevel(prevFuelLevel => {
@@ -249,6 +271,7 @@ function GasStationInterface(props) {
           });
         }
       }, 500);
+      setIntervalId(intervalId);
     }
   }, [client]);
 

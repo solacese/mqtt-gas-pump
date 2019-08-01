@@ -72,7 +72,6 @@ function QRCodeLandingPage(props) {
       `${sessionId}/${pubsubplus_config.login_topic}`,
       function loginPump(message) {
         let loginMessage = JSON.parse(message);
-        console.log()
         setStations(prevStations => ({
           ...prevStations,
           [loginMessage.id]: {
@@ -128,7 +127,6 @@ function QRCodeLandingPage(props) {
             setSessionState("STARTED"); // start the session, navigate to dashboard
           }}
         >
-          {console.log(stations)}
           { stationsLength } Stations Connected
         </Button>
       </Container>

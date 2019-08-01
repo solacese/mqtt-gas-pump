@@ -1,13 +1,9 @@
-import useInput from "./useInput";
 import useLogger from "./useLogger";
-import useContainerDimension from "./useContainerDimension";
-import useWindowDimension from "./useWindowDimension";
-import useGasPump from "./useGasPump";
+import useInput from "./useInput";
+import useInterval from "./useInterval";
 
 export {
   useInput,
-  useLogger,
-  useContainerDimension,
-  useWindowDimension,
-  useGasPump
+  useInterval,
+  useLogger
 };

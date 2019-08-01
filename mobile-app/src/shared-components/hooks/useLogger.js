@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-
 function getTimestamp() {
   var now = new Date();
   var time = [
@@ -12,7 +11,7 @@ function getTimestamp() {
   return timestamp;
 }
 
-function useLogger(stationName, logList) {
+function useLogger(logList) {
   const [logs, setLogs] = useState(logList);
   return {
     logs,
@@ -21,6 +20,6 @@ function useLogger(stationName, logList) {
     },
     clearLogs: () => setLogs([])
   };
-};
+}
 
 export default useLogger;

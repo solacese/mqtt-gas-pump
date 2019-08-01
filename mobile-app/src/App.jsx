@@ -1,8 +1,14 @@
+/**
+ * App.jsx
+ * This component maps all the routes defined in routes.js using the layout defined in Layout.jsx
+ * @author Andrew Roberts
+ */
+
 import React from "react";
-import { BrowserRouter as Router, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Route } from "react-router-dom";
+import { routes } from "./Routes";
 import Header from "./Header";
 import Layout from "./Layout";
-import { routes } from "./Routes";
 
 function App() {
   return (
