@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import styled from "styled-components";
 import { List, AutoSizer } from "react-virtualized";
 
@@ -24,7 +24,7 @@ const Row = styled.div`
 `;
 
 /**
- * Logic
+ * Components
  */
 
 function Logger({ logList }) {

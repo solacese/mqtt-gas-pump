@@ -47,9 +47,7 @@ export const SolaceClient = function (connectOptions, topicName, subscriberCallb
         var now = new Date();
         var time = [('0' + now.getHours()).slice(-2), ('0' + now.getMinutes()).slice(-2),
             ('0' + now.getSeconds()).slice(-2)];
-        var timestamp = '[' + time.join(':') + '] ';
-        console.log(timestamp + line);
-      
+        var timestamp = '[' + time.join(':') + '] ';      
     };
 
     solaceclient.log('\n*** Subscriber to topic "' + solaceclient.topicName + '" is ready to connect ***');
@@ -111,8 +109,6 @@ export const SolaceClient = function (connectOptions, topicName, subscriberCallb
         });
         // define message event listener
         solaceclient.session.on(solace.SessionEventCode.MESSAGE, function (message) {
-            solaceclient.log('Received message: "' + message.getBinaryAttachment() + '", details:\n' +
-                message.dump());
             solaceclient.subscriberCallback(message.getBinaryAttachment());
         });
 

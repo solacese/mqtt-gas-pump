@@ -1,3 +1,8 @@
+/**
+ * Header.jsx
+ * @author Andrew Roberts
+ */
+
 import React from "react";
 import styled from "styled-components";
 import { SvgSolaceLogo } from "../public/icons";
