@@ -1,15 +1,15 @@
 /**
  * GasPumpInterface.jsx
  * This component mimics the behavior of a gas pump by detecting device orientation detection and
- * managing a virtual fuel tank's flow state.  All messages sent by this component are consumed
- * by the parent application's dashboard.
+ * managing a virtual fuel tank's state.  All messages sent by this component are consumed
+ * by the parent dashboard application.
  * @author Andrew Roberts
  */
 
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Logger from "../shared-components/Logger";
-import { useInterval, useLogger } from "../shared-components/hooks";
+import { useInterval } from "../shared-components/hooks";
 import { MQTTClient } from "../shared-components/clients/MQTTClient";
 import { mqtt_config } from "../shared-components/clients/mqtt-config";
 import LiquidFillGauge from "react-liquid-gauge";
@@ -90,8 +90,6 @@ const StationTitle = styled.div`
  * Components
  */
 
-// gross global vars
-
 function getTimestamp() {
   var now = new Date();
   var time = [
@@ -103,6 +101,12 @@ function getTimestamp() {
   return timestamp;
 }
 
+/**
+ * FuelTank
+ * Custom implementation of LiquidFillGauge, a prebuilt liquid gauge display built on top of D3.
+ * Fuel tank color indicator changes from GREEN => YELLOW => ORANGE => RED based on the fuel level.
+ * Read up on the config options here: https://github.com/trendmicro-frontend/react-liquid-gauge
+ */
 function FuelTank({ fuelLevel, radius }) {
   // color configuration
   let fillColor;
@@ -151,31 +155,30 @@ function FuelTank({ fuelLevel, radius }) {
 }
 
 function GasStationInterface(props) {
-  // session details
-  const [sessionId, setSessionId] = useState(null);
-  const [stationId, setStationId] = useState(null);
-  const [stationName, setStationName] = useState(null);
-  // MQTT client
-  const [client, setClient] = useState(null);
+  // session state
+  const [session, setSession] = useState({
+    mqttClient: null,
+    sessionId: null,
+    stationId: null,
+    stationName: null
+  });
   // fuel tank state
-  const [flowOptions, setFlowOptions] = useState({
+  const [fuelTankState, setFuelTankState] = useState({
     delay: 1000,
     flowRatePerSec: 1,
-    isRunning: false
-  });
-  const [fuelTankState, setFuelTankState] = useState({
     fuelLevel: 100,
+    isPumping: false,
     logs: []
   });
 
-  // set up session and MQTT client
+  // set up session
   useEffect(() => {
     // get session config details from navigation props
     const sessionId = props.location.state.sessionId;
     const stationId = props.location.state.stationId;
     const stationName = props.location.state.name;
+    const sessionConfig = { stationId: stationId, sessionId: sessionId };
     // initialize MQTT client
-    let sessionConfig = { stationId: stationId, sessionId: sessionId };
     let client = MQTTClient(
       mqtt_config.mqtt_host,
       Number(mqtt_config.mqtt_port),
@@ -184,15 +187,25 @@ function GasStationInterface(props) {
         // right now, we're only supporting sending STOP commands to the mobile app
         // If you'd like to extend this demo and include more controls,
         // add some conditionals here (e.g. if(msg.command == "START"){...} )
-        flowState = "STOP";
-        log("STOP COMMAND RECEIVED!");
+        setFuelTankState(function setFuelTankStateCallback(prevFuelTankState) {
+          return {
+            ...prevFuelTankState,
+            isPumping: false,
+            logs: [
+              ...prevFuelTankState.logs,
+              `${getTimestamp()} STOP COMMAND RECEIVED!`
+            ]
+          };
+        });
       }
     );
 
-    setClient(client);
-    setSessionId(sessionId);
-    setStationId(stationId);
-    setStationName(stationName);
+    setSession({
+      mqttClient: client,
+      sessionId: sessionId,
+      stationId: stationId,
+      stationName: stationName
+    });
   }, []);
 
   // set up device orientation detection logic
@@ -210,15 +223,27 @@ function GasStationInterface(props) {
 
       // phone is upright, stop flow
       if (alpha < 30) {
-        setFlowOptions({ ...flowOptions, delay: 1000, isRunning: false });
+        setFuelTankState({
+          ...fuelTankState,
+          delay: 1000,
+          isPumping: false
+        });
       }
       // phone is between 30 and 90 degrees, tick 1% every second
       if (alpha > 30 && alpha < 90) {
-        setFlowOptions({ ...flowOptions, delay: 1000, isRunning: true });
+        setFuelTankState({
+          ...fuelTankState,
+          delay: 1000,
+          isPumping: true
+        });
       }
       // phone is between 90 and 180 degrees, tick 1% every half second
       if (alpha > 90 && alpha < 180) {
-        setFlowOptions({ ...flowOptions, delay: 500, isRunning: false });
+        setFuelTankState({
+          ...fuelTankState,
+          delay: 500,
+          isPumping: false
+        });
       }
     });
   }
@@ -226,47 +251,52 @@ function GasStationInterface(props) {
   // set up fuel tank logic
   useInterval(
     function useIntervalCallback() {
-      if (client) {
+      if (session.mqttClient) {
         setFuelTankState(function setFuelTankStateCallback(prevFuelTankState) {
-          console.log("INSIDE SETFUEL CALLBACK", flowOptions);
-          if ((prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec) > 0) {
-            let newLog = `Decremented tank from ${
-              prevFuelTankState.fuelLevel
-            } to ${prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec}`;
-            let logWithTimestamp = `${getTimestamp()} ${newLog}`;
-            console.log("INSIDE SETFUEL CALLBACK CONDITIONAL");
-            client.send(
-              `${sessionId}/${stationId}/flow`,
+          // get values from previous state
+          let fuelLevel = prevFuelTankState.fuelLevel;
+          let flowRatePerSec = prevFuelTankState.flowRatePerSec;
+          let logs = prevFuelTankState.logs;
+          // if the tank isn't empty, decrement
+          if (fuelLevel - flowRatePerSec > 0) {
+            let logWithTimestamp = `${getTimestamp()} Decremented tank from ${fuelLevel} to ${fuelLevel -
+              flowRatePerSec}`;
+            session.mqttClient.send(
+              `${session.sessionId}/${session.stationId}/flow`,
               JSON.stringify({
-                fuelLevel: prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec,
+                fuelLevel: fuelLevel - flowRatePerSec,
                 log: logWithTimestamp
               })
             );
+            // this syntax is pretty handy in react
+            // it means to preserve everything in the previous state
+            // except what is explicitly specified, in this case fuelLevel and logs
             return {
-              fuelLevel:
-                prevFuelTankState.fuelLevel - flowOptions.flowRatePerSec,
-              logs: [...prevFuelTankState.logs, logWithTimestamp]
+              ...prevFuelTankState,
+              fuelLevel: fuelLevel - flowRatePerSec,
+              logs: [...logs, logWithTimestamp]
             };
           } else {
             let logWithTimestamp = `${getTimestamp()} Tank is EMPTY!`;
-            client.send(
-              `${sessionId}/${stationId}/flow`,
+            session.mqttClient.send(
+              `${session.sessionId}/${session.stationId}/flow`,
               JSON.stringify({ fuelLevel: 0, log: logWithTimestamp })
             );
             return {
+              ...prevFuelTankState,
               fuelLevel: 0,
-              logs: [...prevFuelTankState.logs, logWithTimestamp]
+              logs: [...logs, logWithTimestamp]
             };
           }
         });
       }
     },
-    flowOptions.isRunning ? flowOptions.delay : null
+    fuelTankState.isPumping ? fuelTankState.delay : null
   );
 
   return (
     <MainContainer>
-      <StationTitle>{stationName}</StationTitle>
+      <StationTitle>{session.stationName}</StationTitle>
       <FuelTankDiagram>
         <SvgGasStationDiagram height={"300px"} />
         <FuelTankOverlay>
@@ -277,7 +307,11 @@ function GasStationInterface(props) {
         <Button
           color={"#4CAF50"}
           onClick={() => {
-            setFlowOptions({ ...flowOptions, delay: 1000, isRunning: true });
+            setFuelTankState({
+              ...fuelTankState,
+              delay: 1000,
+              isPumping: true
+            });
           }}
         >
           START
@@ -285,7 +319,11 @@ function GasStationInterface(props) {
         <Button
           color={"#f44336"}
           onClick={() => {
-            setFlowOptions({ ...flowOptions, delay: 1000, isRunning: false });
+            setFuelTankState({
+              ...fuelTankState,
+              delay: 1000,
+              isPumping: false
+            });
           }}
         >
           STOP
