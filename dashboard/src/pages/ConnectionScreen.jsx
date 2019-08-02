@@ -1,4 +1,17 @@
-import React, { useState, useEffect } from "react";
+/**
+ * ConnectionScreen.jsx
+ * Set up connection details that the dashboard will use to connect to a Solace Broker.
+ * It prepopulates with the details provided in src/shared-components/solace/pubsubplus-config.js
+ * 
+ * == Note == 
+ * Changing the prepopulated details is not recommended, since the mobile app is going to connect using 
+ * whatever details are provided by its config file.  This screen is mainly for show, so that the audience
+ * realizes that we're connecting to a broker using the details provided by the "Connect" tab 
+ * in the Solace Cloud GUI.
+ * @author Andrew Roberts
+ */
+
+import React, { useState } from "react";
 import styled from "styled-components";
 import { Redirect } from "react-router-dom";
 import { pubsubplus_config } from "../shared-components/solace/pubsubplus-config";
@@ -70,10 +83,10 @@ const StartButton = styled.button`
  */
 
 function ConnectionScreen() {
-  // state
-  const [sessionState, setSessionState] = useState("WAITING");
+  // transition state
+  const [transitionState, setTransitionState] = useState("WAITING");
 
-  // inputs
+  // input state
   const { value: username, bind: bindUsername } = useInput(
     pubsubplus_config.username
   );
@@ -85,8 +98,8 @@ function ConnectionScreen() {
   );
   const { value: vpn, bind: bindVpn } = useInput(pubsubplus_config.vpn);
 
-  // if the session has been started, navigate to the dashboard
-  if (sessionState == "NAVIGATE") {
+  // when the user clicks the connect button, navigate to the qr-code page
+  if (transitionState == "NAVIGATE") {
     return (
       <Redirect
         to={{
@@ -103,7 +116,6 @@ function ConnectionScreen() {
       />
     );
   }
-  // state initialized in "waiting" state while stations connect
   else {
     return (
       <Container>
@@ -133,7 +145,7 @@ function ConnectionScreen() {
                 type={""}
                 onClick={function start() {
                   if (username && password && wsHost && vpn) {
-                    setSessionState("NAVIGATE");
+                    setTransitionState("NAVIGATE");
                   } else {
                     alert("Please fill out all values before starting!");
                   }

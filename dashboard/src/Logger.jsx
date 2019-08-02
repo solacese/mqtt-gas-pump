@@ -23,7 +23,7 @@ const Log = styled.div`
 const Row = styled.div``;
 
 /**
- * Logic
+ * Components
  */
 
 function Logger({ logList }) {

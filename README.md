@@ -7,12 +7,13 @@ A demo of a web application using the MQTT API that transforms your mobile phone
   
 ### Solace PubSub+ features used
 - [WebSockets Messaging](https://docs.solace.com/Solace-PubSub-Messaging-APIs/JavaScript-API/Web-Messaging-Concepts/Web-Messaging-Architectures.htm)
+- [MQTT](https://docs.solace.com/Open-APIs-Protocols/MQTT/MQTT-get-started.htm)
 
 **Try the live demo in action here:
+[http://suncor-demo-dashboard.s3-website-us-east-1.amazonaws.com/](http://suncor-demo-dashboard.s3-website-us-east-1.amazonaws.com/)
 
-
-### Other Useful Links
-
+## Application Flow Diagram
+![Application Flow](/docs/SUNCOR-DEMO-APP-DIAGRAM.png "Application Flow")
 
 ## Contents
 
