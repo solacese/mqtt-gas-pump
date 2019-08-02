@@ -163,11 +163,10 @@ function GasStationInterface(props) {
     stationName: null
   });
   // fuel tank state
+  const [flowSpeed, setFlowSpeed] = useState("STOP"); // STOP || SLOW || FAST
   const [fuelTankState, setFuelTankState] = useState({
-    delay: 1000,
     flowRatePerSec: 1,
     fuelLevel: 100,
-    isPumping: false,
     logs: []
   });
 
@@ -223,27 +222,21 @@ function GasStationInterface(props) {
 
       // phone is upright, stop flow
       if (alpha < 30) {
-        setFuelTankState({
-          ...fuelTankState,
-          delay: 1000,
-          isPumping: false
-        });
+        if(flowSpeed!="STOP") {
+          setFlowSpeed("STOP");
+        }
       }
       // phone is between 30 and 90 degrees, tick 1% every second
       if (alpha > 30 && alpha < 90) {
-        setFuelTankState({
-          ...fuelTankState,
-          delay: 1000,
-          isPumping: true
-        });
+        if(flowSpeed!="SLOW") {
+          setFlowSpeed("SLOW");
+        }
       }
       // phone is between 90 and 180 degrees, tick 1% every half second
       if (alpha > 90 && alpha < 180) {
-        setFuelTankState({
-          ...fuelTankState,
-          delay: 500,
-          isPumping: false
-        });
+        if(flowSpeed!="FAST") {
+          setFlowSpeed("FAST");
+        }
       }
     });
   }
@@ -291,7 +284,7 @@ function GasStationInterface(props) {
         });
       }
     },
-    fuelTankState.isPumping ? fuelTankState.delay : null
+    flowSpeed=="SLOW" ? 1000 : flowSpeed=="FAST" ? 500 : null
   );
 
   return (
@@ -307,11 +300,7 @@ function GasStationInterface(props) {
         <Button
           color={"#4CAF50"}
           onClick={() => {
-            setFuelTankState({
-              ...fuelTankState,
-              delay: 1000,
-              isPumping: true
-            });
+            setFlowSpeed("SLOW");
           }}
         >
           START
@@ -319,11 +308,7 @@ function GasStationInterface(props) {
         <Button
           color={"#f44336"}
           onClick={() => {
-            setFuelTankState({
-              ...fuelTankState,
-              delay: 1000,
-              isPumping: false
-            });
+            setFlowSpeed("STOP");
           }}
         >
           STOP
