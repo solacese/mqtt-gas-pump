@@ -189,13 +189,13 @@ function GasStationInterface(props) {
         setFuelTankState(function setFuelTankStateCallback(prevFuelTankState) {
           return {
             ...prevFuelTankState,
-            isPumping: false,
             logs: [
               ...prevFuelTankState.logs,
               `${getTimestamp()} STOP COMMAND RECEIVED!`
             ]
           };
         });
+        setFlowSpeed("STOP");
       }
     );
 

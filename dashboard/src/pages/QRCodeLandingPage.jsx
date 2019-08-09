@@ -77,7 +77,7 @@ function QRCodeLandingPage() {
   // set up session
   useEffect(() => {
     const sessionId = ((Math.random() * 0xffffff) << 0).toString(16);
-    const mobileUrl = `http://suncor-demo-mobile.s3-website-us-east-1.amazonaws.com/login?sessionId=${sessionId}`;
+    const mobileUrl = `http://mqtt-gas-pump-demo-mobile.s3-website-us-east-1.amazonaws.com/login?sessionId=${sessionId}`;
     const solaceClient = SolaceClient(
       session.solaceConnectionDetails,
       `${sessionId}/${session.solaceConnectionDetails.login_topic}`,
