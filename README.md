@@ -39,7 +39,11 @@ cd mqtt-gas-pump
 ```
 dashboard/src/shared-components/solace/pubsubplus-config-EDITME.js
 ```
-This config file provides the details to connect to your Solace PubSub+ broker.  Fill it out using the details found in the "Solace Web Messaging" section of the "Connect" tab on your cloud broker's management portal.  You'll probably want to use the Secure WebSocket URI.  As for "login_topic" and "start_topic," this is a matter of preference; the app is configured to publish messages on these topics. 
+This config file provides the details to connect to your Solace PubSub+ broker.  Fill it out using the details found in the "Solace Web Messaging" section of the "Connect" tab on your cloud broker's management portal.  You'll probably want to use the Secure WebSocket URI.  As for "login_topic_prefix" and "start_topic_prefix," this is a matter of preference; the app is configured to publish messages on these topics. 
+
+In addition, there is a property "topic_to_queue_mapping" which maps every pump to a queue. However, if speciying this property the code will need to create a queue and add a subscription via SEMPv2 since the javascript API does not support this directly at this point. To accomodate this, you will need to specify the admin username/password. In addition, you will need a mechanism to proxy your SEMP commands since SEMP does not support CORs. This can be accomplished via an AWS Lambda - a sample implementation is availble in [semp-lambda/semp-proxy.js](semp-lambda/semp-proxy.js). Also note, that there is no mechanism to clean up the queues available as the javascript api does not support temporary queues.
+
+If you do not require to have events in a queue, set the property to false and anything below this property will not need to be specified.
 
 ```
 mobile-app/src/shared-components/clients/mqtt-config-EDITME.js

@@ -98,6 +98,8 @@ function ConnectionScreen() {
   );
   const { value: vpn, bind: bindVpn } = useInput(pubsubplus_config.vpn);
 
+  const { value: topicToQueueMapping, bind: bindTopicToQueueMapping} = useInput(pubsubplus_config.topic_to_queue_mapping);
+
   // when the user clicks the connect button, navigate to the qr-code page
   if (transitionState == "NAVIGATE") {
     return (
@@ -110,7 +112,8 @@ function ConnectionScreen() {
               password: password,
               solace_ws_host: wsHost,
               vpn: vpn
-            }
+            },
+            topicToQueueMapping: topicToQueueMapping
           }
         }}
       />

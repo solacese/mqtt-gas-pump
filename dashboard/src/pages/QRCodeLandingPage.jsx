@@ -16,6 +16,7 @@ import styled from "styled-components";
 import { Redirect } from "react-router-dom";
 import { SolaceClient } from "../shared-components/solace/solace-client";
 import { pubsubplus_config } from "../shared-components/solace/pubsubplus-config";
+import { makeRequest } from "../shared-components/api/HttpClient";
 
 /**
  * Styling
@@ -62,6 +63,13 @@ function QRImage({ url }) {
 }
 
 function QRCodeLandingPage() {
+
+  let request_object = {};
+  request_object.baseUrl=pubsubplus_config.semp_proxy_host;
+  request_object.endpoint=pubsubplus_config.semp_proxy_endpoint;
+  request_object.headers={'Content-Type': 'application/json','x-api-key':pubsubplus_config.semp_proxy_key};
+  request_object.method='POST';
+
   // transition state
   const [transition, setTransition] = useState("WAITING");
   // session state
@@ -77,7 +85,7 @@ function QRCodeLandingPage() {
   // set up session
   useEffect(() => {
     const sessionId = ((Math.random() * 0xffffff) << 0).toString(16);
-    const mobileUrl = `http://suncor-demo-mobile.s3-website-us-east-1.amazonaws.com/login?sessionId=${sessionId}`;
+    const mobileUrl = `${pubsubplus_config.baseUrl}/login?sessionId=${sessionId}`;
     const solaceClient = SolaceClient(
       session.solaceConnectionDetails,
       `${sessionId}/${session.solaceConnectionDetails.login_topic}`,
@@ -86,6 +94,20 @@ function QRCodeLandingPage() {
         // from the mobile applications.  Currently, it expects a message in the following format:
         // { name: stationName, id: stationId }
         let loginMessage = JSON.parse(message);
+
+        //Add a topic to queue mapping if enabled
+       
+    //if we've enabled topic-to-queue mapping, then create a queue on startup. Note that this will be a unique queue per
+    //session and currently there is no way to clean it up. But it can be valuable to demonstrate sending MQTT events to
+    //a queue
+    if(pubsubplus_config.topic_to_queue_mapping){
+      const queueName=`gaspump-queue-${sessionId}-${loginMessage.id}`;
+      createQueue(queueName).then(()=>
+      addTopicToQueue(queueName,sessionId,loginMessage.id)
+      )
+    }
+    
+
         // update state to include whoever logs in to the session
         setSession(function setSessionCallback(prevSession){
           // this syntax is pretty handy in react
@@ -106,7 +128,50 @@ function QRCodeLandingPage() {
         })
       }
     );
+
+    async function createQueue(queueName){
+
+      let request_body = {};
+      request_body.host_url=pubsubplus_config.semp_host;
+      request_body.port_no=pubsubplus_config.semp_port;
+      request_body.body={"accessType":"exclusive","egressEnabled":true,"ingressEnabled":true,"maxBindCount":1000,
+      "msgVpnName":pubsubplus_config.vpn, "owner":pubsubplus_config.username,"permission":"consume","queueName":queueName,"rejectLowPriorityMsgEnabled":false,"rejectLowPriorityMsgLimit":0,
+      };
+
+      
+      request_body.path='/SEMP/v2/config/msgVpns/'+pubsubplus_config.vpn+'/queues/'+queueName;
+      request_body.headers={'Content-Type': 'application/json','Authorization': 'Basic '+ btoa(pubsubplus_config.semp_user+':'+pubsubplus_config.semp_password)};
+      request_body.method='PUT';
+      
+      request_object.body=request_body;
+
+      let res = await makeRequest(request_object).catch((err)=>{
+        console.log(err);
+      });
+
+      console.log(res);
+    }; 
+
+    async function addTopicToQueue(queueName,sessionId,stationId){
+      let request_body = {};
+      request_body.host_url=pubsubplus_config.semp_host;
+      request_body.port_no=pubsubplus_config.semp_port;
+      request_body.path='/SEMP/v2/config/msgVpns/'+pubsubplus_config.vpn+'/queues/'+queueName+'/subscriptions?select=subscriptionTopic,msgVpnName,queueName';
+      request_body.body={"subscriptionTopic":sessionId+"/"+stationId+"/*"};
+      request_body.headers={'Content-Type': 'application/json','Authorization': 'Basic '+ btoa(pubsubplus_config.semp_user+':'+pubsubplus_config.semp_password)};
+      request_body.method='POST';
+      request_object.body=request_body;
+
+      let res = await makeRequest(request_object).catch((err)=>{
+        console.log(err);
+      });
+
+      console.log(res);
+
+    }
+
     solaceClient.connectToSolace();
+
 
     setSession({
       ...session,

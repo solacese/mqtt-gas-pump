@@ -9,6 +9,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { SolaceClient } from "../shared-components/solace/solace-client";
+import { SolaceQueueClient } from "../shared-components/solace/solace-queue-client";
 import LiquidFillGauge from "react-liquid-gauge";
 import Logger from "../Logger";
 
@@ -218,6 +219,7 @@ function Dashboard(props) {
     const connectionDetails = props.location.state.connectionDetails;
     const sessionId = props.location.state.sessionId;
     const stations = props.location.state.stations;
+    
     console.log("===== STATE =====");
     console.log("connectionDetails: ", connectionDetails);
     console.log("sessionId: ", sessionId);
@@ -228,7 +230,61 @@ function Dashboard(props) {
     let stationObjs = {};
     for (let stationId in stations) {
       let stationObj = stations[stationId];
-      let solaceClient = SolaceClient(
+
+
+      let solaceClient = {};
+      if(connectionDetails.topic_to_queue_mapping){
+        solaceClient = SolaceQueueClient(
+          connectionDetails,
+          `gaspump-queue-${sessionId}-${stationObj.id}`, // subscribe on topic specific to station
+          function msgReceived(message) {
+            // this callback function gets triggered when the client receives a message
+            // from the mobile applications.  Currently, it expects either a stop command
+            // or a fuel level update.
+            // - STOP COMMAND MESSAGE FORMAT: { command: "STOP" }
+            // - FUEL LEVEL UPDATE MESSAGE FORMAT: { fuelLevel: num, log: string }
+            let msgJson = JSON.parse(message);
+            if (msgJson["command"] == "STOP") {
+              setSession(function setSessionCallback(prevSession) {
+                // this syntax is pretty handy in react
+                // it means to preserve everything in the previous state
+                // except what is explicitly specified, in this case stations and its associated logs
+                return {
+                  ...prevSession,
+                  stations: {
+                    ...prevSession.stations,
+                    [stationObj.id]: {
+                      ...prevSession.stations[stationObj.id],
+                      logs: [
+                        ...prevSession.stations[stationObj.id].logs,
+                        `${getTimestamp()} STOP COMMAND RECEIVED!`
+                      ]
+                    }
+                  }
+                };
+              });
+            } else {
+              setSession(function setSessionCallback(prevSession) {
+                return {
+                  ...prevSession,
+                  stations: {
+                    ...prevSession.stations,
+                    [stationObj.id]: {
+                      ...prevSession.stations[stationObj.id],
+                      fuelLevel: Number(msgJson.fuelLevel),
+                      logs: [
+                        ...prevSession.stations[stationObj.id].logs,
+                        msgJson.log
+                      ]
+                    }
+                  }
+                };
+              });
+            }
+          }
+        );
+      }else{
+      solaceClient = SolaceClient(
         connectionDetails,
         `${sessionId}/${stationObj.id}/*`, // subscribe on topic specific to station
         function msgReceived(message) {
@@ -277,6 +333,7 @@ function Dashboard(props) {
           }
         }
       );
+      }
       solaceClient.connectToSolace();
       stationObj["solaceClient"] = solaceClient;
       stationObj["fuelLevel"] = 100;
